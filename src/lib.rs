@@ -1,7 +1,20 @@
 use std::num::NonZeroUsize;
 
 use lexical::{WriteFloatOptions, WriteFloatOptionsBuilder};
-use xilem::vello::kurbo::{Affine, Vec2};
+use xilem::{
+    Color, TextAlign,
+    masonry::{
+        TextAlignOptions,
+        core::BrushIndex,
+        parley::{
+            FontContext, FontFamily, FontStack, GenericFamily, Layout, LayoutContext, StyleProperty,
+        },
+    },
+    vello::{
+        Scene,
+        kurbo::{Affine, Axis, Line, Stroke, Vec2},
+    },
+};
 
 pub mod math;
 pub mod units;
@@ -39,4 +52,48 @@ pub fn ignore_y(trans: Affine) -> Affine {
     c[3] = 1.;
     c[5] = 0.;
     Affine::new(c)
+}
+
+pub fn infinite_line(half_size: Vec2, axis: Axis, position: f64) -> Line {
+    match axis {
+        Axis::Horizontal => Line::new((-half_size.x, position), (half_size.x, position)),
+        Axis::Vertical => Line::new((position, -half_size.y), (position, half_size.y)),
+    }
+}
+
+pub fn stroke_inf_line(
+    scene: &mut Scene,
+    world: Affine,
+    camera: Affine,
+    half_size: Vec2,
+    (axis, position, color, width): (Axis, f64, Color, f64),
+) {
+    let line = infinite_line(half_size, axis, position);
+    let transform = match axis {
+        Axis::Horizontal => world * ignore_x(camera),
+        Axis::Vertical => world * ignore_y(camera),
+    };
+    scene.stroke(&Stroke::new(width), transform, color, None, &line);
+}
+
+pub fn text_layout(
+    fcx: &mut FontContext,
+    lcx: &mut LayoutContext<BrushIndex>,
+    (text, size, generic_family, max_advance, alignment): (
+        &str,
+        f32,
+        GenericFamily,
+        Option<f32>,
+        TextAlign,
+    ),
+) -> Layout<BrushIndex> {
+    let mut text_layout_builder = lcx.ranged_builder(fcx, text, 1., false);
+    text_layout_builder.push_default(StyleProperty::FontStack(FontStack::Single(
+        FontFamily::Generic(generic_family),
+    )));
+    text_layout_builder.push_default(StyleProperty::FontSize(size));
+    let mut text_layout = text_layout_builder.build(text);
+    text_layout.break_all_lines(max_advance);
+    text_layout.align(None, alignment, TextAlignOptions::default());
+    text_layout
 }

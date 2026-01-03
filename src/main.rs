@@ -3,16 +3,12 @@ use std::time::Duration;
 use xilem::{
     EventLoop, TextAlign, WidgetView, WindowOptions, Xilem,
     core::{Edit, fork, lens, one_of::Either},
-    masonry::{
-        TextAlignOptions,
-        core::render_text,
-        parley::{FontFamily, FontStack, GenericFamily, StyleProperty},
-    },
+    masonry::{core::render_text, parley::GenericFamily},
     palette::css,
     style::Style,
     tokio::time,
     vello::{
-        kurbo::{Affine, Circle, Line, Point, Rect, Stroke, Vec2},
+        kurbo::{Affine, Axis, Circle, Point, Rect, Vec2},
         peniko::Fill,
     },
     view::{MainAxisAlignment, canvas, flex_col, sized_box, task, text_button, zstack},
@@ -20,12 +16,8 @@ use xilem::{
 };
 
 use scale_comparison::{
-    ignore_x, ignore_y, math::ENumber, units::TimeScale, y_flipped, y_flipped_translate,
+    math::ENumber, stroke_inf_line, text_layout, units::TimeScale, y_flipped, y_flipped_translate,
 };
-
-const BAR_WIDTH: f64 = 75.0;
-const BAR_HALF: f64 = BAR_WIDTH / 2.;
-const BAR_GAP: f64 = 50.0;
 
 struct Thing {
     name: String,
@@ -51,6 +43,10 @@ impl Animation {
     const FRAME_DURATION: u64 = 32;
     const FPS: f64 = 1000. / Self::FRAME_DURATION as f64;
 
+    // fn secs(&self) -> f64 {
+    //     self.frame as f64 / Self::FPS
+    // }
+
     fn controls_view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
         if self.active {
             Either::A(text_button("Pause", |state: &mut Self| {
@@ -74,8 +70,12 @@ struct AppState {
 
 impl AppState {
     const SCALE_PADDING: f64 = 2.;
-    const SCALE_ACCELERATION: f64 = 1.;
+    const SCALE_ACCELERATION: f64 = 0.5;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 200.);
+
+    const BAR_WIDTH: f64 = 75.0;
+    const BAR_HALF: f64 = Self::BAR_WIDTH / 2.;
+    const BAR_GAP: f64 = 50.0;
 
     fn init(things: Vec<Thing>) -> Self {
         Self {
@@ -91,10 +91,9 @@ impl AppState {
         self.animation.frame += 1;
         self.scale += self.scale_speed / Animation::FPS;
         self.scale_speed += Self::SCALE_ACCELERATION / Animation::FPS;
-        let mut camera = self.camera.translation();
-        camera.x -= 1.;
-        camera.y -= 0.2;
-        self.camera = self.camera.with_translation(camera);
+        // let mut camera = self.camera.translation();
+        // camera -= (0.8, 0.2).into();
+        // self.camera = self.camera.with_translation(camera);
     }
 
     fn view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
@@ -108,20 +107,21 @@ impl AppState {
             let text_view = (world * Affine::FLIP_Y) * y_flipped(camera);
 
             for (i, thing) in state.things.iter().enumerate() {
-                let x = -(BAR_WIDTH + BAR_GAP) * i as f64;
+                let x = -(Self::BAR_WIDTH + Self::BAR_GAP) * i as f64;
                 let value =
                     (thing.value.inner() / ENumber::from_exp(state.scale)).limit_collapse(1000.);
-                let rect = Rect::from_origin_size((x - BAR_HALF, 0.), (BAR_WIDTH, value));
+                let rect =
+                    Rect::from_origin_size((x - Self::BAR_HALF, 0.), (Self::BAR_WIDTH, value));
                 scene.fill(Fill::NonZero, world_view, css::WHITE, None, &rect);
 
-                let mut text_layout_builder = lcx.ranged_builder(fcx, &thing.name, 1., false);
-                text_layout_builder.push_default(StyleProperty::FontStack(FontStack::Single(
-                    FontFamily::Generic(GenericFamily::SansSerif),
-                )));
-                text_layout_builder.push_default(StyleProperty::FontSize(14.));
-                let mut text_layout = text_layout_builder.build(&thing.name);
-                text_layout.break_all_lines(Some(BAR_WIDTH as f32 + BAR_GAP as f32));
-                text_layout.align(None, TextAlign::Center, TextAlignOptions::default());
+                let name_params = (
+                    thing.name.as_str(),
+                    16.,
+                    GenericFamily::SansSerif,
+                    Some(Self::BAR_WIDTH as f32 + Self::BAR_GAP as f32),
+                    TextAlign::Center,
+                );
+                let text_layout = text_layout(fcx, lcx, name_params);
                 render_text(
                     scene,
                     text_view * y_flipped_translate((x - text_layout.width() as f64 / 2., 0.)),
@@ -132,23 +132,11 @@ impl AppState {
             }
 
             // axes rendering
-            let x_line = Line::new((-half_size.x, 0.), (half_size.x, 0.));
-            let y_line = Line::new((0., -half_size.y), (0., half_size.y));
+            let x_line_params = (Axis::Horizontal, 0., css::RED, 0.5);
+            let y_line_params = (Axis::Vertical, 0., css::BLUE, 0.5);
             let origin_dot = Circle::new(Point::ZERO, 2.);
-            scene.stroke(
-                &Stroke::new(0.5),
-                world * ignore_x(camera),
-                css::RED,
-                None,
-                &x_line,
-            );
-            scene.stroke(
-                &Stroke::new(0.5),
-                world * ignore_y(camera),
-                css::BLUE,
-                None,
-                &y_line,
-            );
+            stroke_inf_line(scene, world, camera, half_size, x_line_params);
+            stroke_inf_line(scene, world, camera, half_size, y_line_params);
             scene.fill(Fill::NonZero, world_view, css::GREEN, None, &origin_dot);
         });
 
