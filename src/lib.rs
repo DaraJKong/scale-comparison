@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use lexical::{WriteFloatOptions, WriteFloatOptionsBuilder};
-use xilem::vello::kurbo::Affine;
+use xilem::vello::kurbo::{Affine, Vec2};
 
 pub mod math;
 pub mod units;
@@ -15,6 +15,14 @@ const WF_OPTIONS: WriteFloatOptions = WriteFloatOptionsBuilder::new()
 #[inline]
 fn float_to_string(value: f64) -> String {
     lexical::to_string_with_options::<_, { FORMAT }>(value, &WF_OPTIONS)
+}
+
+pub fn y_flipped(trans: Affine) -> Affine {
+    (Affine::FLIP_Y * trans) * Affine::FLIP_Y
+}
+
+pub fn y_flipped_translate<V: Into<Vec2>>(p: V) -> Affine {
+    y_flipped(Affine::translate(p))
 }
 
 pub fn ignore_x(trans: Affine) -> Affine {

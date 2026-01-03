@@ -109,6 +109,13 @@ impl ENumber {
         self.exponent
     }
 
+    pub fn erect(&self) -> (f64, f64) {
+        (
+            self.significand.signum(),
+            self.exponent + self.significand.abs().log10(),
+        )
+    }
+
     pub fn collapse(&self) -> Option<f64> {
         let result = self.significand * 10_f64.powf(self.exponent);
         result.is_finite().then_some(result)
