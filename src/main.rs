@@ -1,7 +1,12 @@
 use xilem::{
-    EventLoop, WidgetView, WindowOptions, Xilem,
+    EventLoop, TextAlign, WidgetView, WindowOptions, Xilem,
     core::Edit,
-    masonry::properties::types::AsUnit,
+    masonry::{
+        TextAlignOptions,
+        core::render_text,
+        parley::{FontFamily, FontStack, GenericFamily, StyleProperty},
+        properties::types::AsUnit,
+    },
     palette::css,
     style::Style,
     vello::{
@@ -14,9 +19,9 @@ use xilem::{
 
 use scale_comparison::{ignore_x, ignore_y, math::ENumber, units::TimeScale};
 
-const BAR_WIDTH: f64 = 50.0;
+const BAR_WIDTH: f64 = 75.0;
 const BAR_HALF: f64 = BAR_WIDTH / 2.;
-const BAR_GAP: f64 = 25.0;
+const BAR_GAP: f64 = 50.0;
 
 struct Thing {
     name: String,
@@ -42,18 +47,39 @@ struct AppState {
 impl AppState {
     fn view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
         zstack((
-            canvas(|state: &mut Self, scene, size| {
+            canvas(|state: &mut Self, ctx, scene, size| {
+                let (fcx, lcx) = ctx.text_contexts();
+
                 let half_size = size.to_vec2() / 2.;
-                let world_view = Affine::FLIP_Y.then_translate(half_size);
-                let camera_trans = state.camera.inverse();
-                let camera_view = world_view * camera_trans;
+                let text_view = Affine::translate(half_size);
+                let world_view = text_view * Affine::FLIP_Y;
+                let camera = state.camera.inverse();
+                let text_camera = text_view * camera;
+                let world_camera = world_view * camera;
 
                 for (i, thing) in state.things.iter().enumerate() {
-                    let x = -(BAR_WIDTH + BAR_GAP) * i as f64 - BAR_HALF;
+                    let x = -(BAR_WIDTH + BAR_GAP) * i as f64;
                     let value = (thing.value.inner() / ENumber::from_exp(state.scale))
                         .limit_collapse(1000.);
-                    let rect = Rect::from_origin_size((x, 0.), (BAR_WIDTH, value));
-                    scene.fill(Fill::NonZero, camera_view, css::WHITE, None, &rect);
+                    let rect = Rect::from_origin_size((x - BAR_HALF, 0.), (BAR_WIDTH, value));
+                    scene.fill(Fill::NonZero, world_camera, css::WHITE, None, &rect);
+
+                    let mut text_layout_builder = lcx.ranged_builder(fcx, &thing.name, 1., false);
+                    text_layout_builder.push_default(StyleProperty::FontStack(FontStack::Single(
+                        FontFamily::Generic(GenericFamily::SansSerif),
+                    )));
+                    text_layout_builder.push_default(StyleProperty::FontSize(14.));
+                    let mut text_layout = text_layout_builder.build(&thing.name);
+                    text_layout.break_all_lines(Some(BAR_WIDTH as f32 + BAR_GAP as f32));
+                    text_layout.align(None, TextAlign::Center, TextAlignOptions::default());
+                    render_text(
+                        scene,
+                        text_camera
+                            .then_translate((x - text_layout.width() as f64 / 2., 0.).into()),
+                        &text_layout,
+                        &[css::WHITE.into()],
+                        true,
+                    );
                 }
 
                 // axes rendering
@@ -62,19 +88,19 @@ impl AppState {
                 let origin_dot = Circle::new(Point::ZERO, 2.);
                 scene.stroke(
                     &Stroke::new(0.5),
-                    world_view * ignore_x(camera_trans),
+                    world_view * ignore_x(camera),
                     css::RED,
                     None,
                     &x_line,
                 );
                 scene.stroke(
                     &Stroke::new(0.5),
-                    world_view * ignore_y(camera_trans),
+                    world_view * ignore_y(camera),
                     css::BLUE,
                     None,
                     &y_line,
                 );
-                scene.fill(Fill::NonZero, camera_view, css::GREEN, None, &origin_dot);
+                scene.fill(Fill::NonZero, world_camera, css::GREEN, None, &origin_dot);
             }),
             sized_box(
                 flex_col(flex_row((

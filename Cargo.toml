@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 lexical = "7.0"
-xilem = { git = "https://github.com/linebender/xilem.git" }
+xilem = { git = "https://github.com/DaraJKong/xilem" }

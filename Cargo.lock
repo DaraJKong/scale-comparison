@@ -1528,7 +1528,7 @@ dependencies = [
 [[package]]
 name = "masonry"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "accesskit",
  "dpi",
@@ -1542,7 +1542,7 @@ dependencies = [
 [[package]]
 name = "masonry_core"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "accesskit",
  "anymap3",
@@ -1567,7 +1567,7 @@ dependencies = [
 [[package]]
 name = "masonry_testing"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "accesskit_consumer",
  "futures-intrusive",
@@ -1581,7 +1581,7 @@ dependencies = [
 [[package]]
 name = "masonry_winit"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "accesskit_winit",
  "copypasta",
@@ -2045,10 +2045,11 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "orbclient"
-version = "0.3.49"
+version = "0.3.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "247ad146e19b9437f8604c21f8652423595cf710ad108af40e77d3ae6e96b827"
+checksum = "52ad2c6bae700b7aa5d1cc30c59bdd3a1c180b09dbaea51e2ae2b8e1cf211fdd"
 dependencies = [
+ "libc",
  "libredox",
 ]
 
@@ -3063,7 +3064,7 @@ dependencies = [
 [[package]]
 name = "tree_arena"
 version = "0.2.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "hashbrown 0.16.1",
 ]
@@ -4155,7 +4156,7 @@ checksum = "bec9e4a500ca8864c5b47b8b482a73d62e4237670e5b5f1d6b9e3cae50f28f2b"
 [[package]]
 name = "xilem"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "masonry",
  "masonry_winit",
@@ -4170,7 +4171,7 @@ dependencies = [
 [[package]]
 name = "xilem_core"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "anymore",
  "hashbrown 0.16.1",
@@ -4180,7 +4181,7 @@ dependencies = [
 [[package]]
 name = "xilem_masonry"
 version = "0.4.0"
-source = "git+https://github.com/linebender/xilem.git#c20e9292ef0fa22c498dafb1ee09ad723385fd2d"
+source = "git+https://github.com/DaraJKong/xilem#6b7531c09a06df5219160e83cc95241489656f86"
 dependencies = [
  "masonry",
  "tokio",
