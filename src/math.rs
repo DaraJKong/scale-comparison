@@ -1,9 +1,11 @@
 use std::ops::{Div, Mul};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+use crate::float_to_string;
+
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct ENumber {
     significand: f64,
-    exponent: i32,
+    exponent: f64,
 }
 
 // impl PartialOrd for ENumber {
@@ -20,7 +22,7 @@ pub struct ENumber {
 impl Mul for ENumber {
     type Output = ENumber;
     fn mul(self, rhs: Self) -> Self::Output {
-        Self::new(
+        Self::normalize(
             self.significand * rhs.significand,
             self.exponent + rhs.exponent,
         )
@@ -30,19 +32,22 @@ impl Mul for ENumber {
 impl Div for ENumber {
     type Output = ENumber;
     fn div(self, rhs: Self) -> Self::Output {
-        self.mul(Self::new(rhs.significand, -rhs.exponent))
+        Self::normalize(
+            self.significand / rhs.significand,
+            self.exponent - rhs.exponent,
+        )
     }
 }
 
 impl std::fmt::Display for ENumber {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.exponent {
-            -6..=6 => write!(
+            -6.0..=6.0 => write!(
                 f,
                 "{}",
-                self.collapse().expect("Low exponents sould be collapsible")
+                float_to_string(self.collapse().expect("Low exponents sould be collapsible"))
             ),
-            _ => write!(f, "{}e{}", self.significand, self.exponent),
+            _ => write!(f, "{}e{}", float_to_string(self.significand), self.exponent),
         }
     }
 }
@@ -60,44 +65,35 @@ impl From<(f64, i32)> for ENumber {
 }
 
 impl ENumber {
-    pub fn new(significand: f64, exponent: i32) -> Self {
+    fn normalize(significand: f64, exponent: f64) -> Self {
         if significand == 0. {
             return Self {
                 significand,
-                exponent: 0,
+                exponent: 0.,
             };
         }
-        let adjustment = significand.abs().log10().floor() as i32;
+        let adjustment = significand.abs().log10().floor();
         Self {
-            significand: significand / 10_f64.powi(adjustment),
+            significand: significand / 10_f64.powf(adjustment),
             exponent: exponent + adjustment,
         }
+    }
+
+    pub fn new(significand: f64, exponent: i32) -> Self {
+        Self::normalize(significand, exponent as f64)
     }
 
     pub fn significand(&self) -> f64 {
         self.significand
     }
 
-    pub fn exponent(&self) -> i32 {
+    pub fn exponent(&self) -> f64 {
         self.exponent
     }
 
     pub fn collapse(&self) -> Option<f64> {
-        let result = self.significand * 10_f64.powi(self.exponent);
+        let result = self.significand * 10_f64.powf(self.exponent);
         result.is_finite().then_some(result)
-    }
-}
-
-pub fn precision(value: f64, significant: usize) -> usize {
-    let a = value.abs();
-    if a > 1. {
-        let n = (1. + a.log10().floor()) as usize;
-        if n <= significant { significant - n } else { 0 }
-    } else if a > 0. {
-        let n = -(1. + a.log10().floor()) as usize;
-        significant + n
-    } else {
-        0
     }
 }
 
@@ -106,21 +102,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_enumber_creation() {
+        assert_eq!(
+            ENumber::from(0.),
+            ENumber {
+                significand: 0.,
+                exponent: 0.
+            }
+        );
+        assert_eq!(
+            ENumber::from(1e161),
+            ENumber {
+                significand: 1.,
+                exponent: 161.
+            }
+        );
+    }
+
+    #[test]
     fn test_enumber_normalize() {
         assert_eq!(ENumber::new(12.0, 0), ENumber::new(1.2, 1));
         assert_eq!(ENumber::new(-12.0, 0), ENumber::new(-1.2, 1));
         assert_eq!(ENumber::new(0.012, -6), ENumber::new(1.2, -8));
-        assert_eq!(ENumber::new(0.0, 0), ENumber::new(0.0, 0));
     }
 
     #[test]
     fn test_enumber_collapse() {
         assert_eq!(ENumber::new(3.4, 67).collapse(), Some(3.4e67));
         assert_eq!(ENumber::new(-3.4, 2).collapse(), Some(-3.4e2));
-        assert_eq!(
-            ENumber::new(3.4, -76).collapse(),
-            Some(3.399999999999999e-76)
-        );
+        assert_eq!(ENumber::new(3.4, -76).collapse(), Some(3.4e-76));
         assert_eq!(ENumber::new(3.4, 309).collapse(), None);
     }
 }
