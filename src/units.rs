@@ -1,16 +1,15 @@
 use crate::{float_to_string, math::ENumber};
 
-const MINUTE: f64 = 60_f64;
-const HOUR: f64 = 3600_f64;
-const DAY: f64 = 86400_f64;
-const YEAR: f64 = 31556952_f64;
+pub const MINUTE: f64 = 60_f64;
+pub const HOUR: f64 = 3600_f64;
+pub const DAY: f64 = 86400_f64;
+pub const YEAR: f64 = 31556952_f64;
 
-#[allow(dead_code)]
-const KILO: f64 = 1_000_f64;
-const MEGA: f64 = 1_000_000_f64;
-const GIGA: f64 = 1_000_000_000_f64;
-const TERA: f64 = 1_000_000_000_000_f64;
-const PETA: f64 = 1_000_000_000_000_000_f64;
+pub const KILO: f64 = 1_000_f64;
+pub const MEGA: f64 = 1_000_000_f64;
+pub const GIGA: f64 = 1_000_000_000_f64;
+pub const TERA: f64 = 1_000_000_000_000_f64;
+pub const PETA: f64 = 1_000_000_000_000_000_f64;
 
 pub struct TimeScale(ENumber);
 
@@ -82,8 +81,12 @@ impl<T: Into<ENumber>> From<T> for TimeScale {
 }
 
 impl TimeScale {
-    fn from_years(years: impl Into<ENumber>) -> Self {
+    pub fn from_years(years: impl Into<ENumber>) -> Self {
         Self(years.into() * YEAR.into())
+    }
+
+    pub fn inner(&self) -> ENumber {
+        self.0
     }
 }
 
