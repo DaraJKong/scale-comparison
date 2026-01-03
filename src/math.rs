@@ -19,7 +19,7 @@ pub struct ENumber {
 //     }
 // }
 
-impl Mul for ENumber {
+impl Mul<ENumber> for ENumber {
     type Output = ENumber;
     fn mul(self, rhs: Self) -> Self::Output {
         Self::normalize(
@@ -29,13 +29,27 @@ impl Mul for ENumber {
     }
 }
 
-impl Div for ENumber {
+impl Div<ENumber> for ENumber {
     type Output = ENumber;
     fn div(self, rhs: Self) -> Self::Output {
         Self::normalize(
             self.significand / rhs.significand,
             self.exponent - rhs.exponent,
         )
+    }
+}
+
+impl Mul<f64> for ENumber {
+    type Output = ENumber;
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self::normalize(self.significand * rhs, self.exponent)
+    }
+}
+
+impl Div<f64> for ENumber {
+    type Output = ENumber;
+    fn div(self, rhs: f64) -> Self::Output {
+        Self::normalize(self.significand / rhs, self.exponent)
     }
 }
 
@@ -83,6 +97,10 @@ impl ENumber {
         Self::normalize(significand, exponent as f64)
     }
 
+    pub fn from_exp(exponent: f64) -> Self {
+        Self::normalize(1., exponent)
+    }
+
     pub fn significand(&self) -> f64 {
         self.significand
     }
@@ -94,6 +112,11 @@ impl ENumber {
     pub fn collapse(&self) -> Option<f64> {
         let result = self.significand * 10_f64.powf(self.exponent);
         result.is_finite().then_some(result)
+    }
+
+    pub fn limit_collapse(&self, max: f64) -> f64 {
+        let result = self.significand * 10_f64.powf(self.exponent);
+        result.min(max)
     }
 }
 
@@ -117,6 +140,20 @@ mod tests {
                 exponent: 161.
             }
         );
+    }
+
+    #[test]
+    fn test_enumber_mul_inverse_property() {
+        let tests: Vec<(ENumber, ENumber)> = vec![
+            ((1.23, -456).into(), 1e78.into()),
+            ((-0.12, -34).into(), 1e56.into()),
+            ((1.2, 34).into(), 1e-56.into()),
+            ((0.1, 2345).into(), (-1., 678).into()),
+        ];
+
+        tests
+            .iter()
+            .for_each(|test| assert_eq!(test.0, (test.0 * test.1) / test.1));
     }
 
     #[test]
