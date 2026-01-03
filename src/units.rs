@@ -66,7 +66,7 @@ impl std::fmt::Display for TimeScale {
             }
         }
         if self.0.exponent() > 0. {
-            let yrs = self.0 / YEAR.into();
+            let yrs = self.0 / YEAR;
             write!(f, "{} y", yrs)
         } else {
             write!(f, "{} s", self.0)
@@ -82,7 +82,7 @@ impl<T: Into<ENumber>> From<T> for TimeScale {
 
 impl TimeScale {
     pub fn from_years(years: impl Into<ENumber>) -> Self {
-        Self(years.into() * YEAR.into())
+        Self(years.into() * YEAR)
     }
 
     pub fn inner(&self) -> ENumber {
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_time_scale_format() {
-        let tests: Vec<(TimeScale, &str)> = vec![
+        let tests = vec![
             ((1.23, -456).into(), "1.23e-456 s"),
             ((5.39, -44).into(), "5.39e-44 s"),
             (0.00086.into(), "0.00086 s"),
