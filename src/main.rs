@@ -15,7 +15,7 @@ use xilem::{
         kurbo::{Affine, Axis, Rect, Vec2},
         peniko::Fill,
     },
-    view::{MainAxisAlignment, canvas, flex_col, sized_box, task, text_button, zstack},
+    view::{MainAxisAlignment, canvas, flex_col, label, sized_box, task, text_button, zstack},
     window,
     winit::error::EventLoopError,
 };
@@ -34,6 +34,7 @@ impl Thing {
     const BAR_WIDTH: f64 = 40.0;
     const BAR_HALF: f64 = Self::BAR_WIDTH / 2.;
     const BAR_GAP: f64 = 80.0;
+    const BAR_OFFSET: f64 = Self::BAR_WIDTH + Self::BAR_GAP;
 
     fn new(name: &str, value: impl Into<TimeScale>) -> Self {
         Self {
@@ -46,16 +47,16 @@ impl Thing {
         self.value.inner().erect().1
     }
 
-    fn x_position(index: usize) -> f64 {
-        -(Self::BAR_WIDTH + Self::BAR_GAP) * index as f64
+    fn x_position(index: usize, half_size: Vec2) -> f64 {
+        -half_size.x - Self::BAR_OFFSET * index as f64
     }
 
     fn y_position(&self, scale: f64) -> f64 {
         self.value.inner().to_scale(scale, Viewport::MAX_HEIGHT)
     }
 
-    fn position(&self, index: usize, scale: f64) -> Vec2 {
-        Vec2::new(Self::x_position(index), self.y_position(scale))
+    fn position(&self, index: usize, scale: f64, half_size: Vec2) -> Vec2 {
+        Vec2::new(Self::x_position(index, half_size), self.y_position(scale))
     }
 
     fn render_bar(&self, position: Vec2, scene: &mut Scene, world_view: Affine) {
@@ -79,7 +80,7 @@ impl Thing {
             16.,
             GenericFamily::Serif,
             None,
-            Some(Self::BAR_WIDTH as f32 + Self::BAR_GAP as f32),
+            Some(Self::BAR_OFFSET as f32),
             TextAlign::Center,
         );
         let text_layout = text_layout(fcx, lcx, name_params);
@@ -110,7 +111,7 @@ impl Thing {
             18.,
             GenericFamily::SansSerif,
             Some(550.),
-            Some(Self::BAR_WIDTH as f32 + Self::BAR_GAP as f32),
+            Some(Self::BAR_OFFSET as f32),
             TextAlign::Center,
         );
         let text_layout = text_layout(fcx, lcx, name_params);
@@ -130,13 +131,64 @@ impl Thing {
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
+        half_size: Vec2,
         world_view: Affine,
         text_view: Affine,
     ) {
-        let position = self.position(index, scale);
+        let position = self.position(index, scale, half_size);
         self.render_bar(position, scene, world_view);
         self.render_name(position, fcx, lcx, scene, text_view);
         self.render_value(position, fcx, lcx, scene, text_view);
+    }
+}
+
+#[derive(Debug)]
+enum AnimStep {
+    Idle(u64),
+    Scaling,
+    Pausing(u64),
+    Shifting(u64),
+}
+
+impl Default for AnimStep {
+    fn default() -> Self {
+        Self::Shifting(Self::SHIFTING_FRAMES)
+    }
+}
+
+impl AnimStep {
+    const IDLE_TIME: f64 = 1.;
+    const PAUSING_TIME: f64 = 3.;
+    const SHIFTING_TIME: f64 = 2.;
+
+    const IDLE_FRAMES: u64 = (Self::IDLE_TIME * Animation::FPS) as u64;
+    const PAUSING_FRAMES: u64 = (Self::PAUSING_TIME * Animation::FPS) as u64;
+    const SHIFTING_FRAMES: u64 = (Self::SHIFTING_TIME * Animation::FPS) as u64;
+
+    fn next(&self) -> AnimStep {
+        match self {
+            AnimStep::Idle(_) => AnimStep::Scaling,
+            AnimStep::Scaling => AnimStep::Pausing(Self::PAUSING_FRAMES),
+            AnimStep::Pausing(_) => AnimStep::Shifting(Self::SHIFTING_FRAMES),
+            AnimStep::Shifting(_) => AnimStep::Idle(Self::IDLE_FRAMES),
+        }
+    }
+
+    fn advance(&mut self, current_done: bool) {
+        match self {
+            AnimStep::Idle(i) | AnimStep::Pausing(i) | AnimStep::Shifting(i) => {
+                if *i > 0 {
+                    *i -= 1;
+                } else {
+                    *self = self.next();
+                }
+            }
+            AnimStep::Scaling => {
+                if current_done {
+                    *self = self.next();
+                }
+            }
+        }
     }
 }
 
@@ -144,14 +196,16 @@ impl Thing {
 struct Animation {
     active: bool,
     frame: u64,
+    step: AnimStep,
 }
 
 impl Animation {
     const FRAME_DURATION: u64 = 16;
     const FPS: f64 = 1000. / Self::FRAME_DURATION as f64;
 
-    fn tick(&mut self) {
+    fn tick(&mut self, current_done: bool) {
         self.frame += 1;
+        self.step.advance(current_done);
     }
 
     fn secs(&self) -> f64 {
@@ -188,6 +242,8 @@ struct Viewport {
     animation: Animation,
     scale: f64,
     scale_speed: f64,
+    prev_shift: f64,
+    shift: f64,
     camera: Affine,
 }
 
@@ -195,27 +251,57 @@ impl Viewport {
     const MAX_HEIGHT: f64 = 1000.;
     const MINOR_LINES: usize = 3;
     const MINOR_OFFSET: f64 = (Self::MINOR_LINES as f64 + 1.).recip();
-    const SCALE_PADDING: f64 = 2.5;
-    const IDLE_SCALE_SPEED: f64 = 0.2;
+    const SCALE_PADDING: f64 = 2.75;
+    const IDLE_SCALE_SPEED: f64 = 0.025;
     const SCALE_ACCELERATION: f64 = 0.5;
-    const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 200.);
+    const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 350.);
 
     fn init(things: &Vec<Thing>) -> Self {
         Self {
             animation: Animation::default(),
             scale: things[0].scale() - Self::SCALE_PADDING,
             scale_speed: Self::IDLE_SCALE_SPEED,
+            prev_shift: 0.,
+            shift: 0.,
             camera: Affine::translate(Self::INITIAL_CAMERA_POSITION),
         }
     }
 
-    fn update_animation(&mut self) {
-        self.animation.tick();
+    fn update_animation(&mut self, things: &Vec<Thing>) {
+        let current_done = match self.shift.floor() {
+            ..=0. => true,
+            i => {
+                if let Some(thing) = things.get(dbg!(i as usize - 1)) {
+                    thing.scale() - self.scale <= Self::SCALE_PADDING
+                } else {
+                    false
+                }
+            }
+        };
+        self.animation.tick(current_done);
+
+        match self.animation.step {
+            AnimStep::Idle(_) | AnimStep::Pausing(_) => {
+                self.scale_speed = Self::IDLE_SCALE_SPEED;
+            }
+            AnimStep::Scaling => {
+                self.scale_speed += Self::SCALE_ACCELERATION / Animation::FPS;
+            }
+            AnimStep::Shifting(i) => {
+                self.scale_speed = Self::IDLE_SCALE_SPEED;
+                if i > 0 {
+                    let progress = 1. - (i as f64 / AnimStep::SHIFTING_FRAMES as f64);
+                    self.shift = self.prev_shift + progress;
+                } else {
+                    self.prev_shift += 1.;
+                    self.shift = self.prev_shift
+                }
+            }
+        }
         self.scale += self.scale_speed / Animation::FPS;
-        self.scale_speed += Self::SCALE_ACCELERATION / Animation::FPS;
-        // let mut camera = self.camera.translation();
-        // camera -= (0.8, 0.2).into();
-        // self.camera = self.camera.with_translation(camera);
+        self.camera = self.camera.with_translation(
+            Self::INITIAL_CAMERA_POSITION + Vec2::new(-Thing::BAR_OFFSET * self.shift, 0.),
+        );
     }
 
     fn view(&mut self) -> impl WidgetView<Edit<State>> + use<> {
@@ -306,6 +392,7 @@ impl Viewport {
                         fcx,
                         lcx,
                         scene,
+                        half_size,
                         world_camera,
                         text_camera,
                     );
@@ -317,13 +404,15 @@ impl Viewport {
             },
         );
 
+        let debug = label(format!("{:?}", self.animation.step));
         let animation_controls = lens(Animation::controls_view, move |state: &mut State, ()| {
             &mut state.viewport.animation
         });
-        let overlay =
-            sized_box(flex_col(animation_controls).main_axis_alignment(MainAxisAlignment::End))
-                .expand()
-                .padding(15.);
+        let overlay = sized_box(
+            flex_col((debug, animation_controls)).main_axis_alignment(MainAxisAlignment::End),
+        )
+        .expand()
+        .padding(15.);
 
         let animation = self.animation.active.then_some(task(
             |proxy, _| async move {
@@ -336,7 +425,7 @@ impl Viewport {
                 }
             },
             |state: &mut State, _| {
-                state.viewport.update_animation();
+                state.viewport.update_animation(&state.things);
             },
         ));
 
