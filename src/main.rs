@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use simple_easing::quart_in;
 use xilem::{
     AppState, Color, EventLoop, TextAlign, WidgetView, WindowId, WindowView, Xilem,
     core::{Edit, fork, lens, one_of::Either},
@@ -47,6 +48,10 @@ impl Thing {
         self.value.inner().erect().1
     }
 
+    fn alpha(index: usize, shift: f64) -> f32 {
+        quart_in((shift - index as f64).clamp(0., 1.) as f32)
+    }
+
     fn x_position(index: usize, half_size: Vec2) -> f64 {
         -half_size.x - Self::BAR_OFFSET * index as f64
     }
@@ -59,7 +64,7 @@ impl Thing {
         Vec2::new(Self::x_position(index, half_size), self.y_position(scale))
     }
 
-    fn render_bar(&self, position: Vec2, scene: &mut Scene, world_camera: Affine) {
+    fn render_bar(&self, position: Vec2, alpha: f32, scene: &mut Scene, world_camera: Affine) {
         let rect = Rect::from_origin_size(
             (position.x - Self::BAR_HALF, 0.),
             (Self::BAR_WIDTH, position.y),
@@ -67,7 +72,7 @@ impl Thing {
         scene.fill(
             Fill::NonZero,
             world_camera,
-            css::MEDIUM_SEA_GREEN,
+            css::MEDIUM_SEA_GREEN.with_alpha(alpha),
             None,
             &rect,
         );
@@ -76,6 +81,7 @@ impl Thing {
     fn render_name(
         &self,
         position: Vec2,
+        alpha: f32,
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
@@ -98,7 +104,7 @@ impl Thing {
                     position.y + text_layout.height() as f64 + 10.,
                 )),
             &text_layout,
-            &[css::WHITE.into()],
+            &[css::WHITE.with_alpha(alpha).into()],
             true,
         );
     }
@@ -106,6 +112,7 @@ impl Thing {
     fn render_value(
         &self,
         position: Vec2,
+        alpha: f32,
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
@@ -125,7 +132,7 @@ impl Thing {
             scene,
             text_camera * y_flipped_translate((position.x - text_layout.width() as f64 / 2., -10.)),
             &text_layout,
-            &[css::MEDIUM_SPRING_GREEN.into()],
+            &[css::MEDIUM_SPRING_GREEN.with_alpha(alpha).into()],
             true,
         );
     }
@@ -134,6 +141,7 @@ impl Thing {
         &self,
         index: usize,
         scale: f64,
+        shift: f64,
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
@@ -142,9 +150,10 @@ impl Thing {
         text_camera: Affine,
     ) {
         let position = self.position(index, scale, half_size);
-        self.render_bar(position, scene, world_camera);
-        self.render_name(position, fcx, lcx, scene, text_camera);
-        self.render_value(position, fcx, lcx, scene, text_camera);
+        let alpha = Self::alpha(index, shift);
+        self.render_bar(position, alpha, scene, world_camera);
+        self.render_name(position, alpha, fcx, lcx, scene, text_camera);
+        self.render_value(position, alpha, fcx, lcx, scene, text_camera);
     }
 }
 
@@ -330,8 +339,9 @@ impl Viewport {
                 // things
                 for (i, thing) in things.iter().enumerate() {
                     let position = thing.position(i, viewport.scale, half_size);
-                    thing.render_bar(position, scene, world_camera);
-                    thing.render_name(position, fcx, lcx, scene, text_camera);
+                    let alpha = Thing::alpha(i, viewport.shift);
+                    thing.render_bar(position, alpha, scene, world_camera);
+                    thing.render_name(position, alpha, fcx, lcx, scene, text_camera);
                 }
 
                 // visible logarithmic scale lines
@@ -414,7 +424,8 @@ impl Viewport {
                 // thing values
                 for (i, thing) in things.iter().enumerate() {
                     let position = thing.position(i, viewport.scale, half_size);
-                    thing.render_value(position, fcx, lcx, scene, text_camera);
+                    let alpha = Thing::alpha(i, viewport.shift);
+                    thing.render_value(position, alpha, fcx, lcx, scene, text_camera);
                 }
             },
         );
