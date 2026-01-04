@@ -33,7 +33,7 @@ struct Thing {
 impl Thing {
     const BAR_WIDTH: f64 = 40.0;
     const BAR_HALF: f64 = Self::BAR_WIDTH / 2.;
-    const BAR_GAP: f64 = 80.0;
+    const BAR_GAP: f64 = 100.0;
     const BAR_OFFSET: f64 = Self::BAR_WIDTH + Self::BAR_GAP;
 
     fn new(name: &str, value: impl Into<TimeScale>) -> Self {
@@ -59,12 +59,18 @@ impl Thing {
         Vec2::new(Self::x_position(index, half_size), self.y_position(scale))
     }
 
-    fn render_bar(&self, position: Vec2, scene: &mut Scene, world_view: Affine) {
+    fn render_bar(&self, position: Vec2, scene: &mut Scene, world_camera: Affine) {
         let rect = Rect::from_origin_size(
             (position.x - Self::BAR_HALF, 0.),
             (Self::BAR_WIDTH, position.y),
         );
-        scene.fill(Fill::NonZero, world_view, css::WHITE, None, &rect);
+        scene.fill(
+            Fill::NonZero,
+            world_camera,
+            css::MEDIUM_SEA_GREEN,
+            None,
+            &rect,
+        );
     }
 
     fn render_name(
@@ -73,20 +79,20 @@ impl Thing {
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
-        text_view: Affine,
+        text_camera: Affine,
     ) {
         let name_params = (
             self.name.as_str(),
             16.,
             GenericFamily::Serif,
             None,
-            Some(Self::BAR_OFFSET as f32),
+            Some(Self::BAR_HALF as f32 + Self::BAR_GAP as f32),
             TextAlign::Center,
         );
         let text_layout = text_layout(fcx, lcx, name_params);
         render_text(
             scene,
-            text_view
+            text_camera
                 * y_flipped_translate((
                     position.x - text_layout.width() as f64 / 2.,
                     position.y + text_layout.height() as f64 + 10.,
@@ -103,23 +109,23 @@ impl Thing {
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
-        text_view: Affine,
+        text_camera: Affine,
     ) {
         let value = format!("{}", self.value);
         let name_params = (
             value.as_str(),
             18.,
-            GenericFamily::SansSerif,
-            Some(550.),
+            GenericFamily::Monospace,
+            Some(500.),
             Some(Self::BAR_OFFSET as f32),
             TextAlign::Center,
         );
         let text_layout = text_layout(fcx, lcx, name_params);
         render_text(
             scene,
-            text_view * y_flipped_translate((position.x - text_layout.width() as f64 / 2., -10.)),
+            text_camera * y_flipped_translate((position.x - text_layout.width() as f64 / 2., -10.)),
             &text_layout,
-            &[css::TEAL.into()],
+            &[css::MEDIUM_SPRING_GREEN.into()],
             true,
         );
     }
@@ -132,13 +138,13 @@ impl Thing {
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
         half_size: Vec2,
-        world_view: Affine,
-        text_view: Affine,
+        world_camera: Affine,
+        text_camera: Affine,
     ) {
         let position = self.position(index, scale, half_size);
-        self.render_bar(position, scene, world_view);
-        self.render_name(position, fcx, lcx, scene, text_view);
-        self.render_value(position, fcx, lcx, scene, text_view);
+        self.render_bar(position, scene, world_camera);
+        self.render_name(position, fcx, lcx, scene, text_camera);
+        self.render_value(position, fcx, lcx, scene, text_camera);
     }
 }
 
@@ -253,7 +259,7 @@ impl Viewport {
     const MINOR_OFFSET: f64 = (Self::MINOR_LINES as f64 + 1.).recip();
     const SCALE_PADDING: f64 = 2.75;
     const IDLE_SCALE_SPEED: f64 = 0.025;
-    const SCALE_ACCELERATION: f64 = 0.5;
+    const SCALE_ACCELERATION: f64 = 0.25;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 350.);
 
     fn init(things: &Vec<Thing>) -> Self {
@@ -271,7 +277,7 @@ impl Viewport {
         let current_done = match self.shift.floor() {
             ..=0. => true,
             i => {
-                if let Some(thing) = things.get(dbg!(i as usize - 1)) {
+                if let Some(thing) = things.get(i as usize - 1) {
                     thing.scale() - self.scale <= Self::SCALE_PADDING
                 } else {
                     false
@@ -320,6 +326,13 @@ impl Viewport {
                 let camera = viewport.camera.inverse();
                 let world_camera = world_trans * camera;
                 let text_camera = text_trans * y_flipped(camera);
+
+                // things
+                for (i, thing) in things.iter().enumerate() {
+                    let position = thing.position(i, viewport.scale, half_size);
+                    thing.render_bar(position, scene, world_camera);
+                    thing.render_name(position, fcx, lcx, scene, text_camera);
+                }
 
                 // visible logarithmic scale lines
                 for offset in -1..=3 {
@@ -384,23 +397,25 @@ impl Viewport {
                     }
                 }
 
-                // things
-                for (i, thing) in things.iter().enumerate() {
-                    thing.render(
-                        i,
-                        viewport.scale,
-                        fcx,
-                        lcx,
-                        scene,
-                        half_size,
-                        world_camera,
-                        text_camera,
-                    );
-                }
+                // area under axis line
+                let rect = Rect::new(-half_size.x, 0., half_size.x, -half_size.y);
+                scene.fill(
+                    Fill::NonZero,
+                    world_trans * ignore_x(camera),
+                    Color::from_rgb8(25, 25, 25),
+                    None,
+                    &rect,
+                );
 
                 // axis line
-                let x_line_params = (Axis::Horizontal, 0., css::TEAL, 1.);
+                let x_line_params = (Axis::Horizontal, 0., css::MEDIUM_SPRING_GREEN, 0.8);
                 stroke_inf_line(scene, world_trans, camera, half_size, x_line_params);
+
+                // thing values
+                for (i, thing) in things.iter().enumerate() {
+                    let position = thing.position(i, viewport.scale, half_size);
+                    thing.render_value(position, fcx, lcx, scene, text_camera);
+                }
             },
         );
 
