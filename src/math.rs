@@ -125,6 +125,10 @@ impl ENumber {
         let result = self.significand * 10_f64.powf(self.exponent);
         result.min(max)
     }
+
+    pub fn to_scale(self, scale: f64, max: f64) -> f64 {
+        (self / ENumber::from_exp(scale)).limit_collapse(max)
+    }
 }
 
 #[cfg(test)]

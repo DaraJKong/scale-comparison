@@ -49,7 +49,7 @@ impl Thing {
     }
 
     fn render_bar(&self, x_position: f64, scale: f64, scene: &mut Scene, world_view: Affine) {
-        let value = (self.value.inner() / ENumber::from_exp(scale)).limit_collapse(1000.);
+        let value = self.value.inner().to_scale(scale, AppState::MAX_HEIGHT);
         let rect =
             Rect::from_origin_size((x_position - Self::BAR_HALF, 0.), (Self::BAR_WIDTH, value));
         scene.fill(Fill::NonZero, world_view, css::WHITE, None, &rect);
@@ -136,6 +136,7 @@ struct AppState {
 }
 
 impl AppState {
+    const MAX_HEIGHT: f64 = 1000.;
     const SCALE_PADDING: f64 = 2.;
     const SCALE_ACCELERATION: f64 = 0.5;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 200.);
@@ -168,6 +169,14 @@ impl AppState {
             let camera = state.camera.inverse();
             let world_view = world * camera;
             let text_view = (world * Affine::FLIP_Y) * y_flipped(camera);
+
+            // visible logarithmic scale lines
+            for offset in -1..=3 {
+                let scale = (state.scale + offset as f64).floor();
+                let log_line_pos = ENumber::from_exp(scale).to_scale(state.scale, Self::MAX_HEIGHT);
+                let log_line_params = (Axis::Horizontal, log_line_pos, css::LIGHT_GRAY, 0.5);
+                stroke_inf_line(scene, world, camera, half_size, log_line_params);
+            }
 
             // things rendering
             for (i, thing) in state.things.iter().enumerate() {
