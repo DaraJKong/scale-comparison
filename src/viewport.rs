@@ -9,7 +9,9 @@ use xilem::style::Style;
 use xilem::tokio::time;
 use xilem::vello::kurbo::{Affine, Axis, Rect, Vec2};
 use xilem::vello::peniko::Fill;
-use xilem::view::{MainAxisAlignment, canvas, flex_col, label, sized_box, task, zstack};
+use xilem::view::{
+    MainAxisAlignment, canvas, flex_col, flex_row, label, sized_box, task, text_button, zstack,
+};
 use xilem::{Color, TextAlign, WidgetView};
 
 use crate::State;
@@ -220,15 +222,17 @@ impl Viewport {
             },
         );
 
-        let debug = label(format!("{:?}", self.animation.step));
-        let animation_controls = lens(Animation::controls_view, move |state: &mut State, ()| {
+        let playback_btn = lens(Animation::playback_button, move |state: &mut State, ()| {
             &mut state.viewport.animation
         });
-        let overlay = sized_box(
-            flex_col((debug, animation_controls)).main_axis_alignment(MainAxisAlignment::End),
-        )
-        .expand()
-        .padding(15.);
+        let edit_btn = text_button("Edit", |state: &mut State| state.tab = crate::Tab::Data);
+        let controls = flex_row((playback_btn, edit_btn));
+        let debug = label(format!("{:?}", self.animation.step));
+
+        let overlay =
+            sized_box(flex_col((debug, controls)).main_axis_alignment(MainAxisAlignment::End))
+                .expand()
+                .padding(15.);
 
         let animation = self.animation.active.then_some(task(
             |proxy, _| async move {

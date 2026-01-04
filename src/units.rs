@@ -1,3 +1,7 @@
+use xilem::WidgetView;
+use xilem::core::Edit;
+use xilem::view::{FlexExt, flex_row, text_input};
+
 use crate::math::ENumber;
 use crate::utils::float_to_string;
 
@@ -12,6 +16,7 @@ pub const GIGA: f64 = 1_000_000_000_f64;
 pub const TERA: f64 = 1_000_000_000_000_f64;
 pub const PETA: f64 = 1_000_000_000_000_000_f64;
 
+#[derive(Default)]
 pub struct TimeScale(ENumber);
 
 impl std::fmt::Display for TimeScale {
@@ -90,6 +95,28 @@ impl TimeScale {
 
     pub fn fmt_secs(&self) -> String {
         format!("{} s", self.0.fmt_exp_break(3))
+    }
+
+    pub fn view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
+        flex_row((
+            text_input(
+                self.0.significand().to_string(),
+                |state: &mut Self, value| {
+                    if let Ok(significand) = value.parse() {
+                        state.0 = ENumber::normalize(significand, state.0.exponent());
+                    }
+                },
+            )
+            .placeholder("significand")
+            .flex(1.),
+            text_input(self.0.exponent().to_string(), |state: &mut Self, value| {
+                if let Ok(exponent) = value.parse() {
+                    state.0 = ENumber::normalize(state.0.significand(), exponent);
+                }
+            })
+            .placeholder("exponent")
+            .flex(1.),
+        ))
     }
 }
 

@@ -72,7 +72,7 @@ impl From<(f64, i32)> for ENumber {
 }
 
 impl ENumber {
-    fn normalize(significand: f64, exponent: f64) -> Self {
+    pub fn normalize(significand: f64, exponent: f64) -> Self {
         if significand == 0. {
             return Self {
                 significand,

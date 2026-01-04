@@ -1,16 +1,22 @@
 use simple_easing::cubic_in;
+use xilem::core::{Edit, View, lens};
 use xilem::masonry::core::{BrushIndex, render_text};
 use xilem::masonry::parley::{FontContext, GenericFamily, LayoutContext};
 use xilem::palette::css;
+use xilem::style::Style;
 use xilem::vello::Scene;
 use xilem::vello::kurbo::{Affine, Rect, Vec2};
 use xilem::vello::peniko::Fill;
-use xilem::{Color, TextAlign};
+use xilem::view::{
+    CrossAxisAlignment, MainAxisAlignment, button, flex_col, flex_row, label, sized_box, text_input,
+};
+use xilem::{Color, FontWeight, TextAlign, WidgetView};
 
 use crate::units::TimeScale;
 use crate::utils::{text_layout, y_flipped_translate};
 use crate::viewport::Viewport;
 
+#[derive(Default)]
 pub struct Thing {
     pub name: String,
     pub value: TimeScale,
@@ -124,5 +130,39 @@ impl Thing {
             &[Self::VALUE_COLOR.with_alpha(alpha).into()],
             true,
         );
+    }
+
+    pub fn view(&mut self) -> impl WidgetView<Edit<Self>, bool> + use<> {
+        sized_box(
+            flex_col((
+                label("Name or description:")
+                    .weight(FontWeight::SEMI_BOLD)
+                    .color(Self::NAME_COLOR),
+                text_input(self.name.clone(), |state: &mut Self, value| {
+                    state.name = value;
+                    false
+                }),
+                label("Value (secs):")
+                    .weight(FontWeight::SEMI_BOLD)
+                    .color(Self::VALUE_COLOR),
+                lens(TimeScale::view, move |state: &mut Self, ()| {
+                    &mut state.value
+                })
+                .map_action(|_, _| false),
+                flex_row(
+                    button(label("Delete").color(css::CRIMSON), |_| true)
+                        .border_color(css::FIREBRICK)
+                        .hovered_border_color(css::CRIMSON),
+                )
+                .must_fill_major_axis(true)
+                .main_axis_alignment(MainAxisAlignment::End),
+            ))
+            .cross_axis_alignment(CrossAxisAlignment::Start),
+        )
+        .expand_width()
+        .corner_radius(10.)
+        .padding(10.)
+        .border(Viewport::MINOR_LINE_COLOR, 1.)
+        .background_color(Viewport::FOOTER_AREA_COLOR)
     }
 }

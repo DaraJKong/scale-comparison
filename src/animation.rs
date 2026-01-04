@@ -97,7 +97,7 @@ impl Animation {
         }
     }
 
-    pub fn controls_view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
+    pub fn playback_button(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
         if self.active {
             Either::A(text_button("Pause", |state: &mut Self| {
                 state.active = false;
