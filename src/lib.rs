@@ -2,7 +2,7 @@ use std::num::NonZeroUsize;
 
 use lexical::{WriteFloatOptions, WriteFloatOptionsBuilder};
 use xilem::{
-    Color, TextAlign,
+    Color, FontWeight, TextAlign,
     masonry::{
         TextAlignOptions,
         core::BrushIndex,
@@ -101,10 +101,11 @@ pub fn stroke_inf_line_pad(
 pub fn text_layout(
     fcx: &mut FontContext,
     lcx: &mut LayoutContext<BrushIndex>,
-    (text, size, generic_family, max_advance, alignment): (
+    (text, size, generic_family, weight, max_advance, alignment): (
         &str,
         f32,
         GenericFamily,
+        Option<f32>,
         Option<f32>,
         TextAlign,
     ),
@@ -113,6 +114,9 @@ pub fn text_layout(
     text_layout_builder.push_default(StyleProperty::FontStack(FontStack::Single(
         FontFamily::Generic(generic_family),
     )));
+    if let Some(weight) = weight {
+        text_layout_builder.push_default(StyleProperty::FontWeight(FontWeight::new(weight)));
+    }
     text_layout_builder.push_default(StyleProperty::FontSize(size));
     let mut text_layout = text_layout_builder.build(text);
     text_layout.break_all_lines(max_advance);

@@ -12,7 +12,7 @@ use xilem::{
     tokio::time,
     vello::{
         Scene,
-        kurbo::{Affine, Axis, Circle, Point, Rect, Vec2},
+        kurbo::{Affine, Axis, Rect, Vec2},
         peniko::Fill,
     },
     view::{MainAxisAlignment, canvas, flex_col, sized_box, task, text_button, zstack},
@@ -31,9 +31,9 @@ struct Thing {
 }
 
 impl Thing {
-    const BAR_WIDTH: f64 = 75.0;
+    const BAR_WIDTH: f64 = 40.0;
     const BAR_HALF: f64 = Self::BAR_WIDTH / 2.;
-    const BAR_GAP: f64 = 50.0;
+    const BAR_GAP: f64 = 80.0;
 
     fn new(name: &str, value: impl Into<TimeScale>) -> Self {
         Self {
@@ -50,16 +50,25 @@ impl Thing {
         -(Self::BAR_WIDTH + Self::BAR_GAP) * index as f64
     }
 
-    fn render_bar(&self, x_position: f64, scale: f64, scene: &mut Scene, world_view: Affine) {
-        let value = self.value.inner().to_scale(scale, Viewport::MAX_HEIGHT);
-        let rect =
-            Rect::from_origin_size((x_position - Self::BAR_HALF, 0.), (Self::BAR_WIDTH, value));
+    fn y_position(&self, scale: f64) -> f64 {
+        self.value.inner().to_scale(scale, Viewport::MAX_HEIGHT)
+    }
+
+    fn position(&self, index: usize, scale: f64) -> Vec2 {
+        Vec2::new(Self::x_position(index), self.y_position(scale))
+    }
+
+    fn render_bar(&self, position: Vec2, scene: &mut Scene, world_view: Affine) {
+        let rect = Rect::from_origin_size(
+            (position.x - Self::BAR_HALF, 0.),
+            (Self::BAR_WIDTH, position.y),
+        );
         scene.fill(Fill::NonZero, world_view, css::WHITE, None, &rect);
     }
 
-    fn render_text(
+    fn render_name(
         &self,
-        x_position: f64,
+        position: Vec2,
         fcx: &mut FontContext,
         lcx: &mut LayoutContext<BrushIndex>,
         scene: &mut Scene,
@@ -68,16 +77,48 @@ impl Thing {
         let name_params = (
             self.name.as_str(),
             16.,
-            GenericFamily::SansSerif,
+            GenericFamily::Serif,
+            None,
             Some(Self::BAR_WIDTH as f32 + Self::BAR_GAP as f32),
             TextAlign::Center,
         );
         let text_layout = text_layout(fcx, lcx, name_params);
         render_text(
             scene,
-            text_view * y_flipped_translate((x_position - text_layout.width() as f64 / 2., 0.)),
+            text_view
+                * y_flipped_translate((
+                    position.x - text_layout.width() as f64 / 2.,
+                    position.y + text_layout.height() as f64 + 10.,
+                )),
             &text_layout,
             &[css::WHITE.into()],
+            true,
+        );
+    }
+
+    fn render_value(
+        &self,
+        position: Vec2,
+        fcx: &mut FontContext,
+        lcx: &mut LayoutContext<BrushIndex>,
+        scene: &mut Scene,
+        text_view: Affine,
+    ) {
+        let value = format!("{}", self.value);
+        let name_params = (
+            value.as_str(),
+            18.,
+            GenericFamily::SansSerif,
+            Some(550.),
+            Some(Self::BAR_WIDTH as f32 + Self::BAR_GAP as f32),
+            TextAlign::Center,
+        );
+        let text_layout = text_layout(fcx, lcx, name_params);
+        render_text(
+            scene,
+            text_view * y_flipped_translate((position.x - text_layout.width() as f64 / 2., -10.)),
+            &text_layout,
+            &[css::TEAL.into()],
             true,
         );
     }
@@ -92,9 +133,10 @@ impl Thing {
         world_view: Affine,
         text_view: Affine,
     ) {
-        let x = Self::x_position(index);
-        self.render_bar(x, scale, scene, world_view);
-        self.render_text(x, fcx, lcx, scene, text_view);
+        let position = self.position(index, scale);
+        self.render_bar(position, scene, world_view);
+        self.render_name(position, fcx, lcx, scene, text_view);
+        self.render_value(position, fcx, lcx, scene, text_view);
     }
 }
 
@@ -207,6 +249,7 @@ impl Viewport {
                         14.,
                         GenericFamily::SansSerif,
                         None,
+                        None,
                         TextAlign::Start,
                     );
                     let major_text_layout = text_layout(fcx, lcx, major_label_params);
@@ -255,7 +298,7 @@ impl Viewport {
                     }
                 }
 
-                // things rendering
+                // things
                 for (i, thing) in things.iter().enumerate() {
                     thing.render(
                         i,
@@ -268,13 +311,9 @@ impl Viewport {
                     );
                 }
 
-                // axes rendering
-                let x_line_params = (Axis::Horizontal, 0., css::RED, 0.5);
-                let y_line_params = (Axis::Vertical, 0., css::BLUE, 0.5);
-                let origin_dot = Circle::new(Point::ZERO, 2.);
+                // axis line
+                let x_line_params = (Axis::Horizontal, 0., css::TEAL, 1.);
                 stroke_inf_line(scene, world_trans, camera, half_size, x_line_params);
-                stroke_inf_line(scene, world_trans, camera, half_size, y_line_params);
-                scene.fill(Fill::NonZero, world_camera, css::GREEN, None, &origin_dot);
             },
         );
 
