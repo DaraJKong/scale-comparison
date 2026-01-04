@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use xilem::{
-    AppState, EventLoop, TextAlign, WidgetView, WindowId, WindowView, Xilem,
+    AppState, Color, EventLoop, TextAlign, WidgetView, WindowId, WindowView, Xilem,
     core::{Edit, fork, lens, one_of::Either},
     masonry::{
         core::{BrushIndex, render_text},
@@ -21,7 +21,8 @@ use xilem::{
 };
 
 use scale_comparison::{
-    math::ENumber, stroke_inf_line, text_layout, units::TimeScale, y_flipped, y_flipped_translate,
+    ignore_x, math::ENumber, stroke_inf_line, stroke_inf_line_pad, text_layout, units::TimeScale,
+    y_flipped, y_flipped_translate,
 };
 
 struct Thing {
@@ -104,7 +105,7 @@ struct Animation {
 }
 
 impl Animation {
-    const FRAME_DURATION: u64 = 32;
+    const FRAME_DURATION: u64 = 16;
     const FPS: f64 = 1000. / Self::FRAME_DURATION as f64;
 
     fn tick(&mut self) {
@@ -150,7 +151,10 @@ struct Viewport {
 
 impl Viewport {
     const MAX_HEIGHT: f64 = 1000.;
-    const SCALE_PADDING: f64 = 2.;
+    const MINOR_LINES: usize = 3;
+    const MINOR_OFFSET: f64 = (Self::MINOR_LINES as f64 + 1.).recip();
+    const SCALE_PADDING: f64 = 2.5;
+    const IDLE_SCALE_SPEED: f64 = 0.2;
     const SCALE_ACCELERATION: f64 = 0.5;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 200.);
 
@@ -158,7 +162,7 @@ impl Viewport {
         Self {
             animation: Animation::default(),
             scale: things[0].scale() - Self::SCALE_PADDING,
-            scale_speed: 0.,
+            scale_speed: Self::IDLE_SCALE_SPEED,
             camera: Affine::translate(Self::INITIAL_CAMERA_POSITION),
         }
     }
@@ -183,32 +187,94 @@ impl Viewport {
                 let (fcx, lcx) = ctx.text_contexts();
 
                 let half_size = size.to_vec2() / 2.;
-                let world = Affine::FLIP_Y.then_translate(half_size);
+                let world_trans = Affine::FLIP_Y.then_translate(half_size);
+                let text_trans = world_trans * Affine::FLIP_Y;
                 let camera = viewport.camera.inverse();
-                let world_view = world * camera;
-                let text_view = (world * Affine::FLIP_Y) * y_flipped(camera);
+                let world_camera = world_trans * camera;
+                let text_camera = text_trans * y_flipped(camera);
 
                 // visible logarithmic scale lines
                 for offset in -1..=3 {
                     let scale = (viewport.scale + offset as f64).floor();
-                    let log_line_pos =
+                    let major_pos =
                         ENumber::from_exp(scale).to_scale(viewport.scale, Self::MAX_HEIGHT);
-                    let log_line_params = (Axis::Horizontal, log_line_pos, css::LIGHT_GRAY, 0.5);
-                    stroke_inf_line(scene, world, camera, half_size, log_line_params);
+                    let major_alpha = major_pos.clamp(0., 1.) as f32;
+
+                    // major label
+                    let major_label = TimeScale::from(ENumber::from_exp(scale)).fmt_secs();
+                    let major_label_params = (
+                        major_label.as_str(),
+                        14.,
+                        GenericFamily::SansSerif,
+                        None,
+                        TextAlign::Start,
+                    );
+                    let major_text_layout = text_layout(fcx, lcx, major_label_params);
+                    render_text(
+                        scene,
+                        text_trans
+                            * y_flipped(ignore_x(camera))
+                            * y_flipped_translate((
+                                -half_size.x + 15.,
+                                major_pos + major_text_layout.height() as f64 / 2.,
+                            )),
+                        &major_text_layout,
+                        &[css::WHITE.with_alpha(major_alpha).into()],
+                        true,
+                    );
+
+                    // major lines
+                    let major_line_params = (
+                        Axis::Horizontal,
+                        major_pos,
+                        css::LIGHT_GRAY.with_alpha(major_alpha),
+                        0.8,
+                    );
+                    let major_line_padding = (major_text_layout.width() as f64 + 30., 0.);
+                    stroke_inf_line_pad(
+                        scene,
+                        world_trans,
+                        camera,
+                        half_size,
+                        major_line_params,
+                        major_line_padding,
+                    );
+
+                    // minor lines
+                    for i in 1..=Self::MINOR_LINES {
+                        let minor_pos = ENumber::from_exp(scale + Self::MINOR_OFFSET * i as f64)
+                            .to_scale(viewport.scale, Self::MAX_HEIGHT);
+                        let minor_alpha = minor_pos.clamp(0., 1.) as f32;
+                        let minor_line_params = (
+                            Axis::Horizontal,
+                            minor_pos,
+                            Color::from_rgb8(85, 85, 85).with_alpha(minor_alpha),
+                            0.2,
+                        );
+                        stroke_inf_line(scene, world_trans, camera, half_size, minor_line_params);
+                    }
                 }
 
                 // things rendering
                 for (i, thing) in things.iter().enumerate() {
-                    thing.render(i, viewport.scale, fcx, lcx, scene, world_view, text_view);
+                    thing.render(
+                        i,
+                        viewport.scale,
+                        fcx,
+                        lcx,
+                        scene,
+                        world_camera,
+                        text_camera,
+                    );
                 }
 
                 // axes rendering
                 let x_line_params = (Axis::Horizontal, 0., css::RED, 0.5);
                 let y_line_params = (Axis::Vertical, 0., css::BLUE, 0.5);
                 let origin_dot = Circle::new(Point::ZERO, 2.);
-                stroke_inf_line(scene, world, camera, half_size, x_line_params);
-                stroke_inf_line(scene, world, camera, half_size, y_line_params);
-                scene.fill(Fill::NonZero, world_view, css::GREEN, None, &origin_dot);
+                stroke_inf_line(scene, world_trans, camera, half_size, x_line_params);
+                stroke_inf_line(scene, world_trans, camera, half_size, y_line_params);
+                scene.fill(Fill::NonZero, world_camera, css::GREEN, None, &origin_dot);
             },
         );
 

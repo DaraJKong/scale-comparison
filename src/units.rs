@@ -17,9 +17,7 @@ impl std::fmt::Display for TimeScale {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(collapsed) = self.0.collapse() {
             match collapsed {
-                ..=MINUTE => {
-                    return write!(f, "{} s", self.0);
-                }
+                ..=MINUTE => return write!(f, "{} s", self.0.fmt_exp_break(6)),
                 ..=HOUR => {
                     let mins = collapsed.div_euclid(MINUTE);
                     let secs = collapsed.rem_euclid(MINUTE);
@@ -65,11 +63,11 @@ impl std::fmt::Display for TimeScale {
                 }
             }
         }
-        if self.0.exponent() > 0. {
+        if self.0.exponent().signum() == 1. {
             let yrs = self.0 / YEAR;
-            write!(f, "{} y", yrs)
+            write!(f, "{} y", yrs.fmt_exp_break(6))
         } else {
-            write!(f, "{} s", self.0)
+            write!(f, "{} s", self.0.fmt_exp_break(6))
         }
     }
 }
@@ -87,6 +85,10 @@ impl TimeScale {
 
     pub fn inner(&self) -> ENumber {
         self.0
+    }
+
+    pub fn fmt_secs(&self) -> String {
+        format!("{} s", self.0.fmt_exp_break(3))
     }
 }
 

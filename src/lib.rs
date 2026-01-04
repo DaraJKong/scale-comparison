@@ -54,24 +54,46 @@ pub fn ignore_y(trans: Affine) -> Affine {
     Affine::new(c)
 }
 
-pub fn infinite_line(half_size: Vec2, axis: Axis, position: f64) -> Line {
+pub fn infinite_line(half_size: Vec2, axis: Axis, position: f64, padding: (f64, f64)) -> Line {
     match axis {
-        Axis::Horizontal => Line::new((-half_size.x, position), (half_size.x, position)),
-        Axis::Vertical => Line::new((position, -half_size.y), (position, half_size.y)),
+        Axis::Horizontal => Line::new(
+            (-half_size.x + padding.0, position),
+            (half_size.x - padding.1, position),
+        ),
+        Axis::Vertical => Line::new(
+            (position, -half_size.y + padding.0),
+            (position, half_size.y - padding.1),
+        ),
     }
 }
 
 pub fn stroke_inf_line(
     scene: &mut Scene,
-    world: Affine,
+    world_trans: Affine,
     camera: Affine,
     half_size: Vec2,
     (axis, position, color, width): (Axis, f64, Color, f64),
 ) {
-    let line = infinite_line(half_size, axis, position);
+    let line = infinite_line(half_size, axis, position, (0., 0.));
     let transform = match axis {
-        Axis::Horizontal => world * ignore_x(camera),
-        Axis::Vertical => world * ignore_y(camera),
+        Axis::Horizontal => world_trans * ignore_x(camera),
+        Axis::Vertical => world_trans * ignore_y(camera),
+    };
+    scene.stroke(&Stroke::new(width), transform, color, None, &line);
+}
+
+pub fn stroke_inf_line_pad(
+    scene: &mut Scene,
+    world_trans: Affine,
+    camera: Affine,
+    half_size: Vec2,
+    (axis, position, color, width): (Axis, f64, Color, f64),
+    padding: (f64, f64),
+) {
+    let line = infinite_line(half_size, axis, position, padding);
+    let transform = match axis {
+        Axis::Horizontal => world_trans * ignore_x(camera),
+        Axis::Vertical => world_trans * ignore_y(camera),
     };
     scene.stroke(&Stroke::new(width), transform, color, None, &line);
 }

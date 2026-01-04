@@ -55,14 +55,7 @@ impl Div<f64> for ENumber {
 
 impl std::fmt::Display for ENumber {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self.exponent {
-            -6.0..=6.0 => write!(
-                f,
-                "{}",
-                float_to_string(self.collapse().expect("Low exponents sould be collapsible"))
-            ),
-            _ => write!(f, "{}e{}", float_to_string(self.significand), self.exponent),
-        }
+        write!(f, "{}e{}", float_to_string(self.significand), self.exponent)
     }
 }
 
@@ -107,6 +100,18 @@ impl ENumber {
 
     pub fn exponent(&self) -> f64 {
         self.exponent
+    }
+
+    pub fn fmt_exp_break(&self, exp_break: u32) -> String {
+        let break_range = -(exp_break as f64)..=(exp_break as f64);
+        if break_range.contains(&self.exponent) {
+            format!(
+                "{}",
+                float_to_string(self.collapse().expect("Low exponents sould be collapsible"))
+            )
+        } else {
+            format!("{}e{}", float_to_string(self.significand), self.exponent)
+        }
     }
 
     pub fn erect(&self) -> (f64, f64) {
