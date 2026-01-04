@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use simple_easing::quart_in;
+use simple_easing::{cubic_in, cubic_in_out};
 use xilem::{
     AppState, Color, EventLoop, TextAlign, WidgetView, WindowId, WindowView, Xilem,
     core::{Edit, fork, lens, one_of::Either},
@@ -49,7 +49,7 @@ impl Thing {
     }
 
     fn alpha(index: usize, shift: f64) -> f32 {
-        quart_in((shift - index as f64).clamp(0., 1.) as f32)
+        cubic_in((shift - index as f64).clamp(0., 1.) as f32)
     }
 
     fn x_position(index: usize, half_size: Vec2) -> f64 {
@@ -306,7 +306,7 @@ impl Viewport {
                 self.scale_speed = Self::IDLE_SCALE_SPEED;
                 if i > 0 {
                     let progress = 1. - (i as f64 / AnimStep::SHIFTING_FRAMES as f64);
-                    self.shift = self.prev_shift + progress;
+                    self.shift = self.prev_shift + cubic_in_out(progress as f32) as f64;
                 } else {
                     self.prev_shift += 1.;
                     self.shift = self.prev_shift
