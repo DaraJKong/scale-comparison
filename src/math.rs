@@ -105,10 +105,8 @@ impl ENumber {
     pub fn fmt_exp_break(&self, exp_break: u32) -> String {
         let break_range = -(exp_break as f64)..=(exp_break as f64);
         if break_range.contains(&self.exponent) {
-            format!(
-                "{}",
-                float_to_string(self.collapse().expect("Low exponents sould be collapsible"))
-            )
+            float_to_string(self.collapse().expect("Low exponents sould be collapsible"))
+                .to_string()
         } else {
             format!("{}e{}", float_to_string(self.significand), self.exponent)
         }

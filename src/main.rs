@@ -262,7 +262,7 @@ impl Viewport {
     const SCALE_ACCELERATION: f64 = 0.25;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 350.);
 
-    fn init(things: &Vec<Thing>) -> Self {
+    fn init(things: &[Thing]) -> Self {
         Self {
             animation: Animation::default(),
             scale: things[0].scale() - Self::SCALE_PADDING,
@@ -273,7 +273,7 @@ impl Viewport {
         }
     }
 
-    fn update_animation(&mut self, things: &Vec<Thing>) {
+    fn update_animation(&mut self, things: &[Thing]) {
         let current_done = match self.shift.floor() {
             ..=0. => true,
             i => {
