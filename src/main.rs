@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use simple_easing::{cubic_in, cubic_in_out};
+use simple_easing::{cubic_in, cubic_in_out, cubic_out};
 use xilem::{
     AppState, Color, EventLoop, TextAlign, WidgetView, WindowId, WindowView, Xilem,
     core::{Edit, fork, lens, one_of::Either},
@@ -161,6 +161,7 @@ impl Thing {
 enum AnimStep {
     Idle(u64),
     Scaling,
+    Slowing(u64),
     Pausing(u64),
     Shifting(u64),
 }
@@ -174,22 +175,25 @@ impl Default for AnimStep {
 impl AnimStep {
     const IDLE_TIME: f64 = 1.;
     const PAUSING_TIME: f64 = 3.;
+    const SLOWING_TIME: f64 = 0.1;
     const SHIFTING_TIME: f64 = 2.;
 
     const IDLE_FRAMES: u64 = (Self::IDLE_TIME * Animation::FPS) as u64;
     const PAUSING_FRAMES: u64 = (Self::PAUSING_TIME * Animation::FPS) as u64;
+    const SLOWING_FRAMES: u64 = (Self::SLOWING_TIME * Animation::FPS) as u64;
     const SHIFTING_FRAMES: u64 = (Self::SHIFTING_TIME * Animation::FPS) as u64;
 
     fn next(&self) -> AnimStep {
         match self {
             AnimStep::Idle(_) => AnimStep::Scaling,
-            AnimStep::Scaling => AnimStep::Pausing(Self::PAUSING_FRAMES),
+            AnimStep::Scaling => AnimStep::Slowing(Self::SLOWING_FRAMES),
+            AnimStep::Slowing(_) => AnimStep::Pausing(Self::PAUSING_FRAMES),
             AnimStep::Pausing(_) => AnimStep::Shifting(Self::SHIFTING_FRAMES),
             AnimStep::Shifting(_) => AnimStep::Idle(Self::IDLE_FRAMES),
         }
     }
 
-    fn advance(&mut self, current_done: bool) {
+    fn advance(&mut self, scaling_done: bool, slowing_done: bool) {
         match self {
             AnimStep::Idle(i) | AnimStep::Pausing(i) | AnimStep::Shifting(i) => {
                 if *i > 0 {
@@ -199,8 +203,15 @@ impl AnimStep {
                 }
             }
             AnimStep::Scaling => {
-                if current_done {
+                if scaling_done {
                     *self = self.next();
+                }
+            }
+            AnimStep::Slowing(i) => {
+                if slowing_done || *i == 0 {
+                    *self = self.next();
+                } else {
+                    *i -= 1;
                 }
             }
         }
@@ -218,9 +229,9 @@ impl Animation {
     const FRAME_DURATION: u64 = 16;
     const FPS: f64 = 1000. / Self::FRAME_DURATION as f64;
 
-    fn tick(&mut self, current_done: bool) {
+    fn tick(&mut self, scaling_done: bool, slowing_done: bool) {
         self.frame += 1;
-        self.step.advance(current_done);
+        self.step.advance(scaling_done, slowing_done);
     }
 
     fn secs(&self) -> f64 {
@@ -257,6 +268,7 @@ struct Viewport {
     animation: Animation,
     scale: f64,
     scale_speed: f64,
+    slow_scale_speed: f64,
     prev_shift: f64,
     shift: f64,
     camera: Affine,
@@ -266,9 +278,10 @@ impl Viewport {
     const MAX_HEIGHT: f64 = 1000.;
     const MINOR_LINES: usize = 3;
     const MINOR_OFFSET: f64 = (Self::MINOR_LINES as f64 + 1.).recip();
-    const SCALE_PADDING: f64 = 2.75;
+    const SCALE_PADDING: f64 = 2.85;
     const IDLE_SCALE_SPEED: f64 = 0.025;
     const SCALE_ACCELERATION: f64 = 0.25;
+    const INITIAL_SLOW_SCALE_SPEED: f64 = 3.;
     const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 350.);
 
     fn init(things: &[Thing]) -> Self {
@@ -276,6 +289,7 @@ impl Viewport {
             animation: Animation::default(),
             scale: things[0].scale() - Self::SCALE_PADDING,
             scale_speed: Self::IDLE_SCALE_SPEED,
+            slow_scale_speed: 0.,
             prev_shift: 0.,
             shift: 0.,
             camera: Affine::translate(Self::INITIAL_CAMERA_POSITION),
@@ -283,7 +297,7 @@ impl Viewport {
     }
 
     fn update_animation(&mut self, things: &[Thing]) {
-        let current_done = match self.shift.floor() {
+        let scaling_done = match self.shift.floor() {
             ..=0. => true,
             i => {
                 if let Some(thing) = things.get(i as usize - 1) {
@@ -293,7 +307,9 @@ impl Viewport {
                 }
             }
         };
-        self.animation.tick(current_done);
+        let slowing_done = self.scale_speed <= Self::IDLE_SCALE_SPEED;
+
+        self.animation.tick(scaling_done, slowing_done);
 
         match self.animation.step {
             AnimStep::Idle(_) | AnimStep::Pausing(_) => {
@@ -302,17 +318,30 @@ impl Viewport {
             AnimStep::Scaling => {
                 self.scale_speed += Self::SCALE_ACCELERATION / Animation::FPS;
             }
-            AnimStep::Shifting(i) => {
-                self.scale_speed = Self::IDLE_SCALE_SPEED;
+            AnimStep::Slowing(i) => {
+                if i == AnimStep::SLOWING_FRAMES {
+                    self.slow_scale_speed = self.scale_speed.min(Self::INITIAL_SLOW_SCALE_SPEED)
+                }
                 if i > 0 {
-                    let progress = 1. - (i as f64 / AnimStep::SHIFTING_FRAMES as f64);
-                    self.shift = self.prev_shift + cubic_in_out(progress as f32) as f64;
+                    let progress = i as f32 / AnimStep::SLOWING_FRAMES as f32;
+                    self.scale_speed = Self::IDLE_SCALE_SPEED
+                        + (self.slow_scale_speed - Self::IDLE_SCALE_SPEED)
+                            * cubic_out(progress) as f64;
+                } else {
+                    self.scale_speed = Self::IDLE_SCALE_SPEED;
+                }
+            }
+            AnimStep::Shifting(i) => {
+                if i > 0 {
+                    let progress = 1. - (i as f32 / AnimStep::SHIFTING_FRAMES as f32);
+                    self.shift = self.prev_shift + cubic_in_out(progress) as f64;
                 } else {
                     self.prev_shift += 1.;
                     self.shift = self.prev_shift
                 }
             }
         }
+
         self.scale += self.scale_speed / Animation::FPS;
         self.camera = self.camera.with_translation(
             Self::INITIAL_CAMERA_POSITION + Vec2::new(-Thing::BAR_OFFSET * self.shift, 0.),
