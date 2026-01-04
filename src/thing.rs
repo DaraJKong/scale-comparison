@@ -1,11 +1,11 @@
 use simple_easing::cubic_in;
-use xilem::TextAlign;
 use xilem::masonry::core::{BrushIndex, render_text};
 use xilem::masonry::parley::{FontContext, GenericFamily, LayoutContext};
 use xilem::palette::css;
 use xilem::vello::Scene;
 use xilem::vello::kurbo::{Affine, Rect, Vec2};
 use xilem::vello::peniko::Fill;
+use xilem::{Color, TextAlign};
 
 use crate::units::TimeScale;
 use crate::utils::{text_layout, y_flipped_translate};
@@ -17,6 +17,10 @@ pub struct Thing {
 }
 
 impl Thing {
+    pub const BAR_COLOR: Color = css::MEDIUM_SEA_GREEN;
+    pub const NAME_COLOR: Color = css::WHITE;
+    pub const VALUE_COLOR: Color = css::MEDIUM_SPRING_GREEN;
+
     pub const BAR_WIDTH: f64 = 40.0;
     pub const BAR_HALF: f64 = Self::BAR_WIDTH / 2.;
     pub const BAR_GAP: f64 = 100.0;
@@ -57,7 +61,7 @@ impl Thing {
         scene.fill(
             Fill::NonZero,
             world_camera,
-            css::MEDIUM_SEA_GREEN.with_alpha(alpha),
+            Self::BAR_COLOR.with_alpha(alpha),
             None,
             &rect,
         );
@@ -89,7 +93,7 @@ impl Thing {
                     position.y + text_layout.height() as f64 + 10.,
                 )),
             &text_layout,
-            &[css::WHITE.with_alpha(alpha).into()],
+            &[Self::NAME_COLOR.with_alpha(alpha).into()],
             true,
         );
     }
@@ -117,7 +121,7 @@ impl Thing {
             scene,
             text_camera * y_flipped_translate((position.x - text_layout.width() as f64 / 2., -10.)),
             &text_layout,
-            &[css::MEDIUM_SPRING_GREEN.with_alpha(alpha).into()],
+            &[Self::VALUE_COLOR.with_alpha(alpha).into()],
             true,
         );
     }

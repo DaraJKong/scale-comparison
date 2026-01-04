@@ -32,6 +32,10 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    pub const FOOTER_AREA_COLOR: Color = Color::from_rgb8(25, 25, 25);
+    pub const MAJOR_COLOR: Color = css::LIGHT_GRAY;
+    pub const MINOR_LINE_COLOR: Color = Color::from_rgb8(85, 85, 85);
+
     pub const MAX_HEIGHT: f64 = 1000.;
     pub const MINOR_LINES: usize = 3;
     pub const MINOR_OFFSET: f64 = (Self::MINOR_LINES as f64 + 1.).recip();
@@ -157,7 +161,7 @@ impl Viewport {
                                 major_pos + major_text_layout.height() as f64 / 2.,
                             )),
                         &major_text_layout,
-                        &[css::WHITE.with_alpha(major_alpha).into()],
+                        &[Self::MAJOR_COLOR.with_alpha(major_alpha).into()],
                         true,
                     );
 
@@ -165,7 +169,7 @@ impl Viewport {
                     let major_line_params = (
                         Axis::Horizontal,
                         major_pos,
-                        css::LIGHT_GRAY.with_alpha(major_alpha),
+                        Self::MAJOR_COLOR.with_alpha(major_alpha),
                         0.8,
                     );
                     let major_line_padding = (major_text_layout.width() as f64 + 30., 0.);
@@ -186,7 +190,7 @@ impl Viewport {
                         let minor_line_params = (
                             Axis::Horizontal,
                             minor_pos,
-                            Color::from_rgb8(85, 85, 85).with_alpha(minor_alpha),
+                            Self::MINOR_LINE_COLOR.with_alpha(minor_alpha),
                             0.2,
                         );
                         stroke_inf_line(scene, world_trans, camera, half_size, minor_line_params);
@@ -198,13 +202,13 @@ impl Viewport {
                 scene.fill(
                     Fill::NonZero,
                     world_trans * ignore_x(camera),
-                    Color::from_rgb8(25, 25, 25),
+                    Self::FOOTER_AREA_COLOR,
                     None,
                     &rect,
                 );
 
                 // axis line
-                let x_line_params = (Axis::Horizontal, 0., css::MEDIUM_SPRING_GREEN, 0.8);
+                let x_line_params = (Axis::Horizontal, 0., Thing::VALUE_COLOR, 0.8);
                 stroke_inf_line(scene, world_trans, camera, half_size, x_line_params);
 
                 // thing values
