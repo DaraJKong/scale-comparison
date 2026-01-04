@@ -1,6 +1,6 @@
 use std::ops::{Div, Mul};
 
-use crate::float_to_string;
+use crate::utils::float_to_string;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct ENumber {

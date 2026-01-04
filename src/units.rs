@@ -1,4 +1,5 @@
-use crate::{float_to_string, math::ENumber};
+use crate::math::ENumber;
+use crate::utils::float_to_string;
 
 pub const MINUTE: f64 = 60_f64;
 pub const HOUR: f64 = 3600_f64;
