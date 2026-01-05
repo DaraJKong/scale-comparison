@@ -109,6 +109,7 @@ impl State {
             let _ = state.save();
             state.tab = Tab::Preview;
         }))
+        .must_fill_major_axis(true)
         .main_axis_alignment(MainAxisAlignment::Center)
         .background_color(Viewport::FOOTER_AREA_COLOR);
         flex_col((
