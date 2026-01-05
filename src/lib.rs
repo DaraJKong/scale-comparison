@@ -105,6 +105,7 @@ impl State {
         .main_axis_alignment(MainAxisAlignment::Center);
         let list = portal(flex_col((things, new_btn)).padding(10.));
         let controls = flex_row(text_button("Save and preview", |state: &mut Self| {
+            state.things.sort_by(|a, b| a.value.total_cmp(&b.value));
             state.viewport = Viewport::init(&state.things);
             let _ = state.save();
             state.tab = Tab::Preview;

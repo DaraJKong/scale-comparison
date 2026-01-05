@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::num::ParseFloatError;
 use std::ops::{Div, Mul};
 
@@ -13,17 +14,6 @@ pub struct ENumber {
     significand: f64,
     exponent: f64,
 }
-
-// impl PartialOrd for ENumber {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         self.exponent
-//             .partial_cmp(&other.exponent)
-//             .and_then(|ord| match ord {
-//                 std::cmp::Ordering::Equal => self.significand.partial_cmp(&other.significand),
-//                 _ => Some(ord),
-//             })
-//     }
-// }
 
 impl Mul<ENumber> for ENumber {
     type Output = ENumber;
@@ -106,6 +96,13 @@ impl ENumber {
 
     pub fn exponent(&self) -> f64 {
         self.exponent
+    }
+
+    pub fn total_cmp(&self, other: &Self) -> Ordering {
+        match self.exponent.total_cmp(&other.exponent) {
+            std::cmp::Ordering::Equal => self.significand.total_cmp(&other.significand),
+            ord => ord,
+        }
     }
 
     pub fn fmt_exp_break(&self, exp_break: u32) -> String {

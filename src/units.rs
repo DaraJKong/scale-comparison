@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 use xilem::WidgetView;
 use xilem::core::one_of::Either;
@@ -95,6 +97,10 @@ impl TimeScale {
 
     pub fn inner(&self) -> ENumber {
         self.0
+    }
+
+    pub fn total_cmp(&self, other: &Self) -> Ordering {
+        self.0.total_cmp(&other.0)
     }
 
     pub fn fmt_secs(&self) -> String {
