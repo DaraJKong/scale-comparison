@@ -229,7 +229,10 @@ impl Viewport {
         let playback_btn = lens(Animation::playback_button, move |state: &mut State, ()| {
             &mut state.viewport.animation
         });
-        let edit_btn = text_button("Edit", |state: &mut State| state.tab = crate::Tab::Data);
+        let edit_btn = text_button("Edit", |state: &mut State| {
+            state.viewport.animation.active = false;
+            state.tab = crate::Tab::Data;
+        });
         let controls = flex_row((playback_btn, edit_btn));
         let debug = label(format!("{:?}", self.animation.step));
 
