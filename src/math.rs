@@ -5,8 +5,9 @@ use std::ops::{Div, Mul};
 use serde::{Deserialize, Serialize};
 use xilem::WidgetView;
 use xilem::core::Edit;
-use xilem::view::{FlexExt, flex_row, text_input};
+use xilem::view::{FlexExt, flex_row, text_button, text_input};
 
+use crate::units::{TimeUnit, UnitPrefix};
 use crate::utils::float_to_string;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -140,6 +141,8 @@ impl ENumber {
 #[derive(Default, Clone)]
 pub struct ENumberEditor {
     pub editing: bool,
+    pub unit_prefix: UnitPrefix,
+    pub time_unit: TimeUnit,
     pub significand: String,
     pub exponent: String,
 }
@@ -148,6 +151,8 @@ impl From<ENumber> for ENumberEditor {
     fn from(value: ENumber) -> Self {
         Self {
             editing: true,
+            unit_prefix: UnitPrefix::default(),
+            time_unit: TimeUnit::default(),
             significand: value.significand.to_string(),
             exponent: value.exponent.to_string(),
         }
@@ -157,9 +162,10 @@ impl From<ENumber> for ENumberEditor {
 impl TryInto<ENumber> for ENumberEditor {
     type Error = ParseFloatError;
     fn try_into(self) -> Result<ENumber, Self::Error> {
-        let significand = self.significand.parse()?;
+        let significand: f64 = self.significand.parse()?;
         let exponent = self.exponent.parse()?;
-        Ok(ENumber::normalize(significand, exponent))
+        let unit = self.unit_prefix.factor() * self.time_unit.factor();
+        Ok(ENumber::normalize(significand * unit, exponent))
     }
 }
 
@@ -176,6 +182,25 @@ impl ENumberEditor {
             })
             .placeholder("exponent")
             .flex(1.),
+            text_button(
+                self.unit_prefix.to_string(),
+                |state: &mut Self| match state.unit_prefix {
+                    UnitPrefix::None => state.unit_prefix = UnitPrefix::Kilo,
+                    UnitPrefix::Kilo => state.unit_prefix = UnitPrefix::Mega,
+                    UnitPrefix::Mega => state.unit_prefix = UnitPrefix::Giga,
+                    UnitPrefix::Giga => state.unit_prefix = UnitPrefix::Tera,
+                    UnitPrefix::Tera => state.unit_prefix = UnitPrefix::None,
+                },
+            ),
+            text_button(self.time_unit.to_string(), |state: &mut Self| {
+                match state.time_unit {
+                    TimeUnit::Second => state.time_unit = TimeUnit::Minute,
+                    TimeUnit::Minute => state.time_unit = TimeUnit::Hour,
+                    TimeUnit::Hour => state.time_unit = TimeUnit::Day,
+                    TimeUnit::Day => state.time_unit = TimeUnit::Year,
+                    TimeUnit::Year => state.time_unit = TimeUnit::Second,
+                }
+            }),
         ))
     }
 }

@@ -22,6 +22,74 @@ pub const GIGA: f64 = 1_000_000_000_f64;
 pub const TERA: f64 = 1_000_000_000_000_f64;
 pub const PETA: f64 = 1_000_000_000_000_000_f64;
 
+#[derive(Default, Clone)]
+pub enum UnitPrefix {
+    #[default]
+    None,
+    Kilo,
+    Mega,
+    Giga,
+    Tera,
+}
+
+impl std::fmt::Display for UnitPrefix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnitPrefix::None => write!(f, "-"),
+            UnitPrefix::Kilo => write!(f, "Kilo"),
+            UnitPrefix::Mega => write!(f, "Mega"),
+            UnitPrefix::Giga => write!(f, "Giga"),
+            UnitPrefix::Tera => write!(f, "Tera"),
+        }
+    }
+}
+
+impl UnitPrefix {
+    pub fn factor(self) -> f64 {
+        match self {
+            UnitPrefix::None => 1.,
+            UnitPrefix::Kilo => KILO,
+            UnitPrefix::Mega => MEGA,
+            UnitPrefix::Giga => GIGA,
+            UnitPrefix::Tera => TERA,
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub enum TimeUnit {
+    #[default]
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Year,
+}
+
+impl std::fmt::Display for TimeUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TimeUnit::Second => write!(f, "Second"),
+            TimeUnit::Minute => write!(f, "Minute"),
+            TimeUnit::Hour => write!(f, "Hour"),
+            TimeUnit::Day => write!(f, "Day"),
+            TimeUnit::Year => write!(f, "Year"),
+        }
+    }
+}
+
+impl TimeUnit {
+    pub fn factor(self) -> f64 {
+        match self {
+            TimeUnit::Second => 1.,
+            TimeUnit::Minute => MINUTE,
+            TimeUnit::Hour => HOUR,
+            TimeUnit::Day => DAY,
+            TimeUnit::Year => YEAR,
+        }
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct TimeScale(ENumber, #[serde(skip)] ENumberEditor);
 
