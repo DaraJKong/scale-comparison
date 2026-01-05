@@ -1,8 +1,11 @@
 use xilem::WidgetView;
-use xilem::core::Edit;
-use xilem::view::{FlexExt, flex_row, text_input};
+use xilem::core::one_of::Either;
+use xilem::core::{Edit, lens};
+use xilem::style::Style;
+use xilem::view::{FlexExt, button, flex_row, label, text_button, text_input};
 
-use crate::math::ENumber;
+use crate::math::{ENumber, ENumberEditor};
+use crate::thing::Thing;
 use crate::utils::float_to_string;
 
 pub const MINUTE: f64 = 60_f64;
@@ -17,7 +20,7 @@ pub const TERA: f64 = 1_000_000_000_000_f64;
 pub const PETA: f64 = 1_000_000_000_000_000_f64;
 
 #[derive(Default)]
-pub struct TimeScale(ENumber);
+pub struct TimeScale(ENumber, ENumberEditor);
 
 impl std::fmt::Display for TimeScale {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -80,13 +83,13 @@ impl std::fmt::Display for TimeScale {
 
 impl<T: Into<ENumber>> From<T> for TimeScale {
     fn from(value: T) -> Self {
-        TimeScale(value.into())
+        Self(value.into(), ENumberEditor::default())
     }
 }
 
 impl TimeScale {
     pub fn from_years(years: impl Into<ENumber>) -> Self {
-        Self(years.into() * YEAR)
+        Self(years.into() * YEAR, ENumberEditor::default())
     }
 
     pub fn inner(&self) -> ENumber {
@@ -98,25 +101,30 @@ impl TimeScale {
     }
 
     pub fn view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
-        flex_row((
-            text_input(
-                self.0.significand().to_string(),
-                |state: &mut Self, value| {
-                    if let Ok(significand) = value.parse() {
-                        state.0 = ENumber::normalize(significand, state.0.exponent());
+        if self.1.editing {
+            Either::A(flex_row((
+                button(label("Ok").color(Thing::VALUE_COLOR), |state: &mut Self| {
+                    if let Ok(enumber) = state.1.clone().try_into() {
+                        state.0 = enumber;
                     }
-                },
-            )
-            .placeholder("significand")
-            .flex(1.),
-            text_input(self.0.exponent().to_string(), |state: &mut Self, value| {
-                if let Ok(exponent) = value.parse() {
-                    state.0 = ENumber::normalize(state.0.significand(), exponent);
-                }
-            })
-            .placeholder("exponent")
-            .flex(1.),
-        ))
+                    state.1.editing = false;
+                }),
+                lens(ENumberEditor::view, move |state: &mut Self, ()| {
+                    &mut state.1
+                })
+                .flex(1.),
+            )))
+        } else {
+            Either::B(flex_row((
+                text_button("Edit", |state: &mut Self| {
+                    state.1 = state.0.into();
+                    state.1.editing = true;
+                }),
+                text_input(self.to_string(), |_, _| {})
+                    .disabled(true)
+                    .flex(1.),
+            )))
+        }
     }
 }
 

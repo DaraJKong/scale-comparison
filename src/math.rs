@@ -1,4 +1,9 @@
+use std::num::ParseFloatError;
 use std::ops::{Div, Mul};
+
+use xilem::WidgetView;
+use xilem::core::Edit;
+use xilem::view::{FlexExt, flex_row, text_input};
 
 use crate::utils::float_to_string;
 
@@ -131,6 +136,49 @@ impl ENumber {
 
     pub fn to_scale(self, scale: f64, max: f64) -> f64 {
         (self / ENumber::from_exp(scale)).limit_collapse(max)
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct ENumberEditor {
+    pub editing: bool,
+    pub significand: String,
+    pub exponent: String,
+}
+
+impl From<ENumber> for ENumberEditor {
+    fn from(value: ENumber) -> Self {
+        Self {
+            editing: true,
+            significand: value.significand.to_string(),
+            exponent: value.exponent.to_string(),
+        }
+    }
+}
+
+impl TryInto<ENumber> for ENumberEditor {
+    type Error = ParseFloatError;
+    fn try_into(self) -> Result<ENumber, Self::Error> {
+        let significand = self.significand.parse()?;
+        let exponent = self.exponent.parse()?;
+        Ok(ENumber::normalize(significand, exponent))
+    }
+}
+
+impl ENumberEditor {
+    pub fn view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
+        flex_row((
+            text_input(self.significand.clone(), |state: &mut Self, value| {
+                state.significand = value;
+            })
+            .placeholder("significand")
+            .flex(1.),
+            text_input(self.exponent.clone(), |state: &mut Self, value| {
+                state.exponent = value;
+            })
+            .placeholder("exponent")
+            .flex(1.),
+        ))
     }
 }
 

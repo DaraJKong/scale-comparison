@@ -142,20 +142,16 @@ impl Thing {
                     state.name = value;
                     false
                 }),
-                label("Value (secs):")
+                label("Value:")
                     .weight(FontWeight::SEMI_BOLD)
-                    .color(Self::VALUE_COLOR),
+                    .color(Self::NAME_COLOR),
                 lens(TimeScale::view, move |state: &mut Self, ()| {
                     &mut state.value
                 })
                 .map_action(|_, _| false),
-                flex_row(
-                    button(label("Delete").color(css::CRIMSON), |_| true)
-                        .border_color(css::FIREBRICK)
-                        .hovered_border_color(css::CRIMSON),
-                )
-                .must_fill_major_axis(true)
-                .main_axis_alignment(MainAxisAlignment::End),
+                flex_row(button(label("Delete").color(css::RED), |_| true))
+                    .must_fill_major_axis(true)
+                    .main_axis_alignment(MainAxisAlignment::End),
             ))
             .cross_axis_alignment(CrossAxisAlignment::Start),
         )

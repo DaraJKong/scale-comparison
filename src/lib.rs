@@ -79,11 +79,10 @@ impl State {
         .main_axis_alignment(MainAxisAlignment::Center)
         .background_color(Viewport::FOOTER_AREA_COLOR);
         flex_col((
-            sized_box(list).expand_height().width(800.px()).flex(1.),
-            sized_box(controls).expand_width().height(75.px()),
+            sized_box(list).width(800.px()).expand_height().flex(1.),
+            sized_box(controls).height(75.px()),
         ))
         .must_fill_major_axis(true)
-        .main_axis_alignment(MainAxisAlignment::End)
     }
 
     pub fn view(&mut self) -> impl Iterator<Item = WindowView<Self>> + use<> {
