@@ -1,13 +1,14 @@
 use std::num::ParseFloatError;
 use std::ops::{Div, Mul};
 
+use serde::{Deserialize, Serialize};
 use xilem::WidgetView;
 use xilem::core::Edit;
 use xilem::view::{FlexExt, flex_row, text_input};
 
 use crate::utils::float_to_string;
 
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ENumber {
     significand: f64,
     exponent: f64,

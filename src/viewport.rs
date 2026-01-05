@@ -48,9 +48,13 @@ impl Viewport {
     pub const INITIAL_CAMERA_POSITION: Vec2 = Vec2::new(0., 350.);
 
     pub fn init(things: &[Thing]) -> Self {
+        let scale = things
+            .get(0)
+            .map(|thing| thing.scale() - Self::SCALE_PADDING)
+            .unwrap_or(0.);
         Self {
             animation: Animation::default(),
-            scale: things[0].scale() - Self::SCALE_PADDING,
+            scale,
             scale_speed: Self::IDLE_SCALE_SPEED,
             slow_scale_speed: 0.,
             prev_shift: 0.,

@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use simple_easing::cubic_in;
 use xilem::core::{Edit, View, lens};
 use xilem::masonry::core::{BrushIndex, render_text};
@@ -16,7 +17,7 @@ use crate::units::TimeScale;
 use crate::utils::{text_layout, y_flipped_translate};
 use crate::viewport::Viewport;
 
-#[derive(Default)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct Thing {
     pub name: String,
     pub value: TimeScale,

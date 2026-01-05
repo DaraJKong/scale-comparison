@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use xilem::WidgetView;
 use xilem::core::one_of::Either;
 use xilem::core::{Edit, lens};
@@ -19,8 +20,8 @@ pub const GIGA: f64 = 1_000_000_000_f64;
 pub const TERA: f64 = 1_000_000_000_000_f64;
 pub const PETA: f64 = 1_000_000_000_000_000_f64;
 
-#[derive(Default)]
-pub struct TimeScale(ENumber, ENumberEditor);
+#[derive(Default, Serialize, Deserialize)]
+pub struct TimeScale(ENumber, #[serde(skip)] ENumberEditor);
 
 impl std::fmt::Display for TimeScale {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

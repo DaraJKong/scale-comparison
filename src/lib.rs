@@ -1,3 +1,8 @@
+use std::fs;
+use std::path::PathBuf;
+use std::sync::LazyLock;
+
+use directories::ProjectDirs;
 use xilem::core::{Edit, lens, map_action};
 use xilem::masonry::properties::types::AsUnit;
 use xilem::style::Style;
@@ -15,6 +20,9 @@ pub mod viewport;
 
 use crate::thing::Thing;
 use crate::viewport::Viewport;
+
+pub static PROJECT_DIRS: LazyLock<ProjectDirs> =
+    LazyLock::new(|| ProjectDirs::from("org", "darajkong", env!("CARGO_PKG_NAME")).unwrap());
 
 #[derive(Copy, Clone)]
 enum Tab {
@@ -48,6 +56,30 @@ impl State {
         }
     }
 
+    fn data_file() -> PathBuf {
+        let mut path = PROJECT_DIRS.preference_dir().join("_").to_path_buf();
+        path.set_file_name("data.json");
+        path
+    }
+
+    pub fn load() -> anyhow::Result<Self> {
+        let path = Self::data_file();
+        let string = fs::read_to_string(path)?;
+        let things = serde_json::from_str(&string)?;
+        let state = Self::new(things);
+        let _ = state.save();
+        Ok(state)
+    }
+
+    pub fn save(&self) -> anyhow::Result<()> {
+        let path = Self::data_file();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, serde_json::to_string(&self.things)?)?;
+        Ok(())
+    }
+
     pub fn data_view(&mut self) -> impl WidgetView<Edit<Self>> + use<> {
         let things = self
             .things
@@ -72,8 +104,9 @@ impl State {
         .must_fill_major_axis(true)
         .main_axis_alignment(MainAxisAlignment::Center);
         let list = portal(flex_col((things, new_btn)).padding(10.));
-        let controls = flex_row(text_button("Preview", |state: &mut Self| {
+        let controls = flex_row(text_button("Save and preview", |state: &mut Self| {
             state.viewport = Viewport::init(&state.things);
+            let _ = state.save();
             state.tab = Tab::Preview;
         }))
         .main_axis_alignment(MainAxisAlignment::Center)
