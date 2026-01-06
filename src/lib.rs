@@ -103,7 +103,15 @@ impl State {
         }))
         .must_fill_major_axis(true)
         .main_axis_alignment(MainAxisAlignment::Center);
-        let list = portal(flex_col((things, new_btn)).padding(10.));
+        let list = portal(
+            flex_row(
+                sized_box(flex_col((things, new_btn)))
+                    .width(800.px())
+                    .padding(10.),
+            )
+            .must_fill_major_axis(true)
+            .main_axis_alignment(MainAxisAlignment::Center),
+        );
         let controls = flex_row(text_button("Save and preview", |state: &mut Self| {
             state.things.sort_by(|a, b| a.value.total_cmp(&b.value));
             state.viewport = Viewport::init(&state.things);
@@ -113,11 +121,9 @@ impl State {
         .must_fill_major_axis(true)
         .main_axis_alignment(MainAxisAlignment::Center)
         .background_color(Viewport::FOOTER_AREA_COLOR);
-        flex_col((
-            sized_box(list).width(800.px()).expand_height().flex(1.),
-            sized_box(controls).height(75.px()),
-        ))
-        .must_fill_major_axis(true)
+        flex_col((list.flex(1.), sized_box(controls).height(75.px())))
+            .must_fill_major_axis(true)
+            .gap(0.px())
     }
 
     pub fn view(&mut self) -> impl Iterator<Item = WindowView<Self>> + use<> {
